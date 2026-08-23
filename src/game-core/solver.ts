@@ -13,7 +13,7 @@ export function countSolutions(board: BoardSnapshot, requestedLimit = 2): number
     const queens: RowOption[] = [];
     for (let column = 0; column < size; column += 1) {
       const index = row * size + column;
-      const region = board.regionMap[index];
+      const region = board.regionMap[index]!;
       if (!Number.isInteger(region) || region < 0 || region >= size) {
         if (board.cells[index] === 'queen') return 0;
         continue; // Unassigned generator cells are not playable yet.

@@ -1,5 +1,5 @@
 import { countSolutions, extractFirstSolution } from './solver.ts';
-import type { BoardSnapshot, GeneratedPuzzle, PuzzleGenerator } from './types.ts';
+import type { BoardSnapshot, CellState, GeneratedPuzzle, PuzzleGenerator } from './types.ts';
 
 export class RegionPuzzleGenerator implements PuzzleGenerator {
   generate(size: number, seed = Date.now()): GeneratedPuzzle {
@@ -51,7 +51,7 @@ function growUniqueRegions(size: number, queens: readonly number[], random: () =
     let accepted: typeof options[number] | null = null;
     for (const option of options) {
       regions[option.index] = option.region;
-      const cells = Array.from({ length: size * size }, () => 'empty' as const);
+      const cells: CellState[] = Array.from({ length: size * size }, () => 'empty');
       cells[option.index] = 'queen';
       if (countSolutions({ size, regionMap: regions, cells }, 1) === 0) { accepted = option; break; }
       regions[option.index] = -1;
