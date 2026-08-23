@@ -1,17 +1,10 @@
-import type { Difficulty } from './types.ts';
+import type { Difficulty, DifficultyPolicy } from './types.ts';
 
-export interface DifficultyConfig {
-  readonly label: string;
-  readonly boardSize: number;
-  readonly maxHints: number;
-  readonly realtimeAnswerValidation: boolean;
-  readonly accent: string;
-}
-
-export const DIFFICULTIES: Readonly<Record<Difficulty, DifficultyConfig>> = {
-  beginner: { label: 'Beginner', boardSize: 6, maxHints: 0, realtimeAnswerValidation: true, accent: '#70d6b2' },
-  intermediate: { label: 'Intermediate', boardSize: 7, maxHints: 0, realtimeAnswerValidation: true, accent: '#8cb9e8' },
-  advanced: { label: 'Advanced', boardSize: 8, maxHints: 0, realtimeAnswerValidation: true, accent: '#d6b870' },
-  expert: { label: 'Expert', boardSize: 9, maxHints: 3, realtimeAnswerValidation: false, accent: '#d69070' },
-  king: { label: 'King', boardSize: 10, maxHints: 3, realtimeAnswerValidation: false, accent: '#c47ad9' },
+/** Board sizes preserve the current product draft and remain independently configurable. */
+export const DIFFICULTIES: Readonly<Record<Difficulty, DifficultyPolicy>> = {
+  beginner: { label: '初級', boardSize: 6, givenQueenCount: 2, realtimeQueenValidation: true, hintLimit: 0, completionValidation: 'full-board', accent: '#70d6b2' },
+  intermediate: { label: '中級', boardSize: 7, givenQueenCount: 1, realtimeQueenValidation: true, hintLimit: 0, completionValidation: 'full-board', accent: '#8cb9e8' },
+  advanced: { label: '高級', boardSize: 8, givenQueenCount: 0, realtimeQueenValidation: true, hintLimit: 0, completionValidation: 'full-board', accent: '#d6b870' },
+  expert: { label: '進階', boardSize: 9, givenQueenCount: 0, realtimeQueenValidation: false, hintLimit: 3, completionValidation: 'full-board', accent: '#d69070' },
+  king: { label: '王者', boardSize: 10, givenQueenCount: 0, realtimeQueenValidation: false, hintLimit: 3, completionValidation: 'full-board', accent: '#c47ad9' },
 };

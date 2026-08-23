@@ -1,33 +1,47 @@
 # EquiReign
 
-EquiReign is the production game built from the NQueensSimulator solver and puzzle-generation work. It targets iOS and Android first, with Web as the universal secondary platform.
+EquiReign is the production Region Queens game. iOS and Android are the product mainline; Expo Web is the secondary universal target. `NQueensSimulator` remains the solver/generator laboratory and no simulator UI is copied into this app.
 
-## Initial game rules
+## Rules
 
-- Beginner: 2 given queens; realtime answer-position validation.
-- Intermediate: 1 given queen; realtime answer-position validation.
-- Advanced: no given queens; realtime answer-position validation.
-- Expert and King: no given queens; no answer-position validation; 3 hints.
-- Expert/King hints highlight the next logical cell without revealing queen or X, and clear on the next board action.
-- Direct queen conflicts remain visible at every difficulty.
+- Exactly one Queen in every row, column, and region.
+- Queens may share a distant diagonal; only adjacent Queens are forbidden.
+- Given Queens are puzzle metadata: immutable, excluded from undo/history, and retained by restart.
+- Beginner / Intermediate / Advanced use solver feasibility feedback.
+- Expert / King hide feasibility feedback and provide three non-revealing logical-cell hints.
 
 ## Architecture
 
-- `src/game-core`: platform-independent TypeScript rules and state transitions.
-- `src/puzzles`: pre-generated, validated puzzle definitions.
-- `src/features/game`: React Native presentation only.
-- `NQueensSimulator` remains a separate solver/generator/verification tool.
-- Future production layers include sessions, progression, economy, and cosmetics.
+- `src/game-core`: platform-independent Puzzle, Solver, Rule, Difficulty, GameSession and Result domain.
+- `src/puzzles`: unique, generator-verified Region Puzzle catalog.
+- `src/features`: React Native presentation.
+- `app`: Expo Router shell and screens.
+- `tests`: unit and coverage gates.
+- `e2e`: Playwright Chromium/WebKit product flows.
 
-## CI/CD baseline
-
-The repository follows the established develop → CI → PR → main release discipline. Application quality gates will be enabled as the scaffold gains its lockfile and E2E suite.
+Dependencies point inward: `UI → Session → Domain → Puzzle/Solver`. Solver code has no React, account, shop, audio or cosmetic dependency.
 
 ## Run
 
 ```bash
-npm install
+npm ci
 npm test
+npm run test:coverage
 npm run typecheck
-npm run android   # or ios / web
+npm run lint
+npm run web
 ```
+
+## Implemented product slice
+
+- five DifficultyPolicy definitions;
+- Region-aware unique puzzles and bitmask `countSolutions(limit)`;
+- Empty → X → Queen → Empty, long-press X shortcut, Undo and Restart;
+- direct Rule Conflict separated from solver-based Solution Feasibility;
+- current-board logical hints whose Queen/X answer never reaches UI;
+- hint highlight lifecycle and no-charge failure behavior;
+- full-board completion, timer, result data and completion screen;
+- outer Settings, Operation Tip and Rule Tip routes;
+- reproducible CI quality gates and browser E2E flows.
+
+Economy, account backend, leaderboard, daily backend, multiplayer and large cosmetic systems intentionally remain outside this first product slice.

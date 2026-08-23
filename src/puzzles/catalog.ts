@@ -1,56 +1,48 @@
-import type { Difficulty, PuzzleDefinition } from '../game-core/types.ts';
+import type { Difficulty, Position, PuzzleDefinition } from '../game-core/types.ts';
 
-const PUZZLES: Readonly<Record<Difficulty, PuzzleDefinition>> = {
+interface CatalogSource { readonly size: number; readonly regionMap: readonly number[]; readonly solution: readonly Position[] }
+
+const SOURCES: Readonly<Record<Difficulty, CatalogSource>> = {
   beginner: {
-    id: 'beginner-001',
-    difficulty: 'beginner',
     size: 6,
-    solution: [1, 3, 5, 0, 2, 4],
-    givens: [{ row: 0, column: 1 }, { row: 3, column: 0 }],
-    hintSequence: [],
+    regionMap: [1,0,0,2,3,3, 1,1,0,2,3,3, 1,1,2,2,2,3, 4,2,2,3,3,3, 4,4,5,5,5,3, 4,4,4,5,5,5],
+    solution: [{row:0,column:2},{row:1,column:0},{row:2,column:3},{row:3,column:5},{row:4,column:1},{row:5,column:4}],
   },
   intermediate: {
-    id: 'intermediate-001',
-    difficulty: 'intermediate',
     size: 7,
-    solution: [0, 2, 4, 6, 1, 3, 5],
-    givens: [{ row: 3, column: 6 }],
-    hintSequence: [],
+    regionMap: [3,3,2,2,0,0,1, 3,2,2,2,1,1,1, 3,3,2,2,2,6,6, 3,3,2,4,4,4,6, 3,5,4,4,4,4,6, 5,5,5,4,6,4,6, 5,5,5,4,6,6,6],
+    solution: [{row:0,column:4},{row:1,column:6},{row:2,column:2},{row:3,column:0},{row:4,column:3},{row:5,column:1},{row:6,column:5}],
   },
   advanced: {
-    id: 'advanced-001',
-    difficulty: 'advanced',
     size: 8,
-    solution: [0, 4, 7, 5, 2, 6, 1, 3],
-    givens: [],
-    hintSequence: [],
+    regionMap: [1,1,0,0,0,0,0,0, 1,1,1,1,2,2,0,3, 1,1,2,2,2,4,3,3, 1,1,4,4,2,4,3,3, 1,1,4,4,4,4,3,3, 5,7,6,6,6,4,4,3, 5,7,7,6,6,4,4,3, 7,7,6,6,4,4,3,3],
+    solution: [{row:0,column:6},{row:1,column:2},{row:2,column:4},{row:3,column:7},{row:4,column:5},{row:5,column:0},{row:6,column:3},{row:7,column:1}],
   },
   expert: {
-    id: 'expert-001',
-    difficulty: 'expert',
     size: 9,
-    solution: [0, 2, 5, 7, 1, 3, 8, 6, 4],
-    givens: [],
-    hintSequence: [
-      { position: { row: 0, column: 1 }, expected: 'excluded' },
-      { position: { row: 0, column: 0 }, expected: 'queen' },
-      { position: { row: 1, column: 2 }, expected: 'queen' },
-    ],
+    regionMap: [3,3,3,3,0,0,0,0,1, 3,3,2,2,0,0,1,1,1, 3,3,2,2,2,0,2,6,6, 8,3,3,3,2,2,2,4,6, 8,3,5,5,4,4,4,4,6, 8,5,5,5,7,4,4,6,6, 8,5,7,7,7,7,7,7,6, 8,8,8,8,7,8,8,7,7, 8,8,8,8,8,8,8,8,7],
+    solution: [{row:0,column:5},{row:1,column:7},{row:2,column:3},{row:3,column:1},{row:4,column:6},{row:5,column:2},{row:6,column:8},{row:7,column:4},{row:8,column:0}],
   },
   king: {
-    id: 'king-001',
-    difficulty: 'king',
     size: 10,
-    solution: [0, 2, 5, 7, 9, 4, 8, 1, 3, 6],
-    givens: [],
-    hintSequence: [
-      { position: { row: 0, column: 1 }, expected: 'excluded' },
-      { position: { row: 0, column: 0 }, expected: 'queen' },
-      { position: { row: 1, column: 2 }, expected: 'queen' },
-    ],
+    regionMap: [2,2,2,2,0,0,0,0,0,0, 2,2,2,2,0,0,0,1,0,1, 2,2,2,2,2,0,0,1,1,1, 2,2,2,2,2,2,2,3,3,1, 4,6,5,5,2,3,3,3,3,1, 4,6,5,5,2,3,3,3,3,1, 6,6,5,5,5,5,5,3,3,7, 6,6,8,9,9,5,5,3,7,7, 8,8,8,8,9,7,7,7,7,7, 8,8,8,9,9,9,7,7,7,7],
+    solution: [{row:0,column:6},{row:1,column:9},{row:2,column:4},{row:3,column:7},{row:4,column:0},{row:5,column:3},{row:6,column:1},{row:7,column:8},{row:8,column:2},{row:9,column:5}],
   },
 };
 
+const GIVEN_INDEXES: Readonly<Record<Difficulty, readonly number[]>> = {
+  beginner: [1, 4], intermediate: [3], advanced: [], expert: [], king: [],
+};
+
 export function getPuzzle(difficulty: Difficulty): PuzzleDefinition {
-  return PUZZLES[difficulty];
+  const source = SOURCES[difficulty];
+  return {
+    id: `${difficulty}-001`,
+    difficulty,
+    size: source.size,
+    regionMap: source.regionMap,
+    givenQueens: GIVEN_INDEXES[difficulty].map((index) => source.solution[index]!),
+  };
 }
+
+export const DIFFICULTY_ORDER: readonly Difficulty[] = ['beginner', 'intermediate', 'advanced', 'expert', 'king'];

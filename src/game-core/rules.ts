@@ -1,60 +1,34 @@
-import type { ConflictMap, Position, PuzzleDefinition } from './types.ts';
+import { cellIndex, positionKey, positionsWithState } from './board.ts';
+import type { BoardSnapshot, ConflictMap, ConflictReason, Position } from './types.ts';
 
-export function attacks(a: Position, b: Position): boolean {
-  return a.row === b.row
-    || a.column === b.column
-    || Math.abs(a.row - b.row) === Math.abs(a.column - b.column);
+function mark(positions: Set<string>, reasons: Set<ConflictReason>, reason: ConflictReason, a: Position, b: Position): void {
+  positions.add(positionKey(a)); positions.add(positionKey(b)); reasons.add(reason);
 }
 
-export function findConflicts(queens: readonly (number | null)[]): ConflictMap {
-  const positions = queens.flatMap((column, row) =>
-    column === null ? [] : [{ row, column }],
-  );
-  const rows = new Set<number>();
-
-  for (let left = 0; left < positions.length; left += 1) {
-    for (let right = left + 1; right < positions.length; right += 1) {
-      const a = positions[left];
-      const b = positions[right];
-      if (a && b && attacks(a, b)) {
-        rows.add(a.row);
-        rows.add(b.row);
-      }
-    }
+/** Direct rule conflicts are difficulty-independent and never use a stored answer. */
+export function findRuleConflicts(board: BoardSnapshot): ConflictMap {
+  const queens = positionsWithState(board, 'queen');
+  const positions = new Set<string>();
+  const reasons = new Set<ConflictReason>();
+  for (let left = 0; left < queens.length; left += 1) for (let right = left + 1; right < queens.length; right += 1) {
+    const a = queens[left]!; const b = queens[right]!;
+    if (a.row === b.row) mark(positions, reasons, 'row', a, b);
+    if (a.column === b.column) mark(positions, reasons, 'column', a, b);
+    if (board.regionMap[cellIndex(board.size, a)] === board.regionMap[cellIndex(board.size, b)]) mark(positions, reasons, 'region', a, b);
+    if (Math.abs(a.row - b.row) <= 1 && Math.abs(a.column - b.column) <= 1) mark(positions, reasons, 'adjacent', a, b);
   }
-
-  return { rows, positions };
+  return { positions, reasons };
 }
 
-export function isSolved(queens: readonly (number | null)[], size: number): boolean {
-  return queens.length === size
-    && queens.every((column) => column !== null)
-    && findConflicts(queens).rows.size === 0;
+export function validateCompletedBoard(board: BoardSnapshot): boolean {
+  const queens = positionsWithState(board, 'queen');
+  if (queens.length !== board.size || findRuleConflicts(board).positions.size > 0) return false;
+  const rows = new Set(queens.map((queen) => queen.row));
+  const columns = new Set(queens.map((queen) => queen.column));
+  const regions = new Set(queens.map((queen) => board.regionMap[cellIndex(board.size, queen)]));
+  return rows.size === board.size && columns.size === board.size && regions.size === board.size;
 }
 
-export function validatePuzzle(puzzle: PuzzleDefinition): void {
-  if (puzzle.solution.length !== puzzle.size || !isSolved(puzzle.solution, puzzle.size)) {
-    throw new Error(`Puzzle ${puzzle.id} has an invalid solution.`);
-  }
-
-  const givenRows = new Set<number>();
-  for (const given of puzzle.givens) {
-    if (
-      given.row < 0
-      || given.row >= puzzle.size
-      || given.column !== puzzle.solution[given.row]
-      || givenRows.has(given.row)
-    ) {
-      throw new Error(`Puzzle ${puzzle.id} has an invalid given queen.`);
-    }
-    givenRows.add(given.row);
-  }
-
-  for (const step of puzzle.hintSequence) {
-    const { row, column } = step.position;
-    const expected = puzzle.solution[row] === column ? 'queen' : 'excluded';
-    if (row < 0 || row >= puzzle.size || column < 0 || column >= puzzle.size || step.expected !== expected) {
-      throw new Error(`Puzzle ${puzzle.id} has an invalid hint step.`);
-    }
-  }
+export function hasCompleteQueenCount(board: BoardSnapshot): boolean {
+  return positionsWithState(board, 'queen').length === board.size;
 }
