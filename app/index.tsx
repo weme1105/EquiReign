@@ -15,7 +15,7 @@ export default function HomeScreen() {
         return <Pressable accessibilityRole="button" key={difficulty} onPress={() => router.push({ pathname: '/game', params: { difficulty } })}
           style={({ pressed }) => [styles.option, { borderColor: policy.accent }, pressed && styles.pressed]} testID={`difficulty-${difficulty}`}>
           <View><Text style={[styles.optionTitle, { color: policy.accent }]}>{policy.label}</Text><Text style={styles.optionCode}>{difficulty.toUpperCase()}</Text></View>
-          <Text style={styles.optionMeta}>{policy.boardSize}×{policy.boardSize}　預置 {policy.givenQueenCount}　提示 {policy.hintLimit}</Text>
+          <Text style={styles.optionMeta}>{policy.boardSize}×{policy.boardSize} · 預置 {policy.givenQueenCount} · 提示 {policy.hintLimit}</Text>
         </Pressable>;
       })}</View>
       <View style={styles.helpRow}>

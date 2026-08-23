@@ -20,7 +20,7 @@ export default function GameScreen() {
   const policy = DIFFICULTIES[difficulty]; const result = toPuzzleResult(session, now); const hintsLeft = policy.hintLimit - session.hintsUsed;
 
   if (session.status === 'completed') return <SafeAreaView style={styles.screen}><View style={styles.completed} testID="completion-screen">
-    <Text style={styles.crown}>♛</Text><Text style={styles.completedTitle}>王冠歸位</Text><Text style={styles.completedMeta}>{formatTime(result.elapsedTimeMs)}　{session.history.length} 步　提示 {result.hintsUsed}</Text>
+    <Text style={styles.crown}>♛</Text><Text style={styles.completedTitle}>王冠歸位</Text><Text style={styles.completedMeta}>{formatTime(result.elapsedTimeMs)} · {session.history.length} 步 · 提示 {result.hintsUsed}</Text>
     <Pressable onPress={() => setSession(restart(session))} style={styles.primary} testID="play-again"><Text style={styles.primaryText}>再玩一次</Text></Pressable>
     <Pressable onPress={() => router.replace('/')} style={styles.secondary}><Text style={styles.secondaryText}>選擇其他難度</Text></Pressable>
   </View></SafeAreaView>;
@@ -30,7 +30,7 @@ export default function GameScreen() {
     <Pressable onPress={() => router.push('/settings')} testID="game-settings"><Text style={styles.back}>設定</Text></Pressable>
   </View><View style={styles.content}>
     <GameBoard session={session} onPress={(row, column) => setSession((current) => cycleCell(current, { row, column }))} onLongPress={(row, column) => setSession((current) => toggleExcluded(current, { row, column }))} />
-    <Text style={styles.instruction}>點擊：空白 → × → 皇后　金色皇后不可修改</Text>
+    <Text style={styles.instruction}>點擊：空白 → × → 皇后 · 金色皇后不可修改</Text>
     {session.completionError && <Text style={styles.errorText} testID="completion-error">盤面尚未正確完成，請檢查紅色衝突。</Text>}
     <View style={styles.actions}>
       <Pressable disabled={!session.history.length} onPress={() => setSession(undo)} style={[styles.action, !session.history.length && styles.disabled]} testID="undo-button"><Text style={styles.actionText}>Undo</Text></Pressable>

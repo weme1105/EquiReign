@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createBoard, positionKey, withCell } from '../src/game-core/board.ts';
+import { createBoard, withCell } from '../src/game-core/board.ts';
 import { DIFFICULTIES } from '../src/game-core/difficulty.ts';
 import { RegionPuzzleGenerator } from '../src/game-core/generator.ts';
 import { validatePuzzle } from '../src/game-core/puzzle.ts';

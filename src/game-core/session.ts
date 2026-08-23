@@ -3,7 +3,7 @@ import { DIFFICULTIES } from './difficulty.ts';
 import { validatePuzzle } from './puzzle.ts';
 import { hasCompleteQueenCount, validateCompletedBoard } from './rules.ts';
 import { canCompleteWithQueen, findLogicalHint } from './solver.ts';
-import type { BoardHistoryEntry, CellState, GameSession, Position, PuzzleDefinition, PuzzleResult } from './types.ts';
+import type { CellState, GameSession, Position, PuzzleDefinition, PuzzleResult } from './types.ts';
 
 const NEXT_STATE: Readonly<Record<CellState, CellState>> = { empty: 'excluded', excluded: 'queen', queen: 'empty' };
 
