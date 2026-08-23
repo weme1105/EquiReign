@@ -16,7 +16,9 @@ export default function GameScreen() {
   const params = useLocalSearchParams<{ difficulty?: string }>(); const difficulty = parseDifficulty(params.difficulty);
   const puzzle = useMemo(() => getPuzzle(difficulty), [difficulty]);
   const activePuzzleId = useRef(puzzle.id);
+  const [isReady, setIsReady] = useState(false);
   const [session, setSession] = useState(() => createGameSession(puzzle)); const [now, setNow] = useState(Date.now());
+  useEffect(() => setIsReady(true), []);
   useEffect(() => {
     if (activePuzzleId.current === puzzle.id) return;
     activePuzzleId.current = puzzle.id; const startedAt = Date.now();
@@ -25,13 +27,13 @@ export default function GameScreen() {
   useEffect(() => { if (session.status === 'completed') return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [session.status]);
   const policy = DIFFICULTIES[difficulty]; const result = toPuzzleResult(session, now); const hintsLeft = policy.hintLimit - session.hintsUsed;
 
-  if (session.status === 'completed') return <SafeAreaView style={styles.screen}><View style={styles.completed} testID="completion-screen">
+  if (session.status === 'completed') return <SafeAreaView accessibilityLabel="遊戲已就緒" style={styles.screen} testID="game-screen"><View style={styles.completed} testID="completion-screen">
     <Text style={styles.crown}>♛</Text><Text style={styles.completedTitle}>王冠歸位</Text><Text style={styles.completedMeta}>{formatTime(result.elapsedTimeMs)} · {session.history.length} 步 · 提示 {result.hintsUsed}</Text>
     <Pressable accessibilityRole="button" onPress={() => setSession(restart(session))} style={styles.primary} testID="play-again"><Text style={styles.primaryText}>再玩一次</Text></Pressable>
     <Pressable accessibilityRole="button" onPress={() => router.replace('/')} style={styles.secondary}><Text style={styles.secondaryText}>選擇其他難度</Text></Pressable>
   </View></SafeAreaView>;
 
-  return <SafeAreaView style={styles.screen}><View style={styles.header}>
+  return <SafeAreaView accessibilityLabel={isReady ? '遊戲已就緒' : '遊戲載入中'} style={styles.screen} testID="game-screen"><View style={styles.header}>
     <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.back}>‹ 難度</Text></Pressable><View style={styles.headerCenter}><Text style={[styles.level, { color: policy.accent }]}>{policy.label}</Text><Text style={styles.timer} testID="timer">{formatTime(result.elapsedTimeMs)}</Text></View>
     <Pressable accessibilityRole="button" onPress={() => router.push('/settings')} testID="game-settings"><Text style={styles.back}>設定</Text></Pressable>
   </View><View style={styles.content}>
