@@ -33,7 +33,9 @@ test('opens a new game, cycles marks, undoes and restarts', async ({ page }) => 
 
 test('given queens stay locked through restart', async ({ page }) => {
   await openGame(page, 'beginner');
-  const given = page.getByTestId('cell-1-0');
+  const givens = page.locator('[data-testid^="cell-"][aria-label*="皇后，預置"]');
+  await expect(givens).toHaveCount(2);
+  const given = givens.first();
   await expect(given).toHaveAttribute('aria-disabled', 'true');
   await given.click({ force: true });
   await expect(given).toHaveAttribute('aria-label', /皇后，預置/);
