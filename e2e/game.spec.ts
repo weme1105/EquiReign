@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-async function openGame(page: Page, difficulty: string): Promise<void> {
-  await page.goto(`/game?difficulty=${difficulty}`);
+async function openGame(page: Page, difficulty: string, size = 8): Promise<void> {
+  await page.goto(`/game?difficulty=${difficulty}&size=${size}`);
   await expect(page.getByTestId('game-screen')).toHaveAttribute('aria-label', '遊戲已就緒');
 }
 
@@ -15,7 +15,11 @@ async function markQueen(cell: Locator): Promise<void> {
 test('opens a new game, cycles marks, undoes and restarts', async ({ page }) => {
   await page.goto('/');
   await page.getByTestId('difficulty-advanced').click();
+  await page.getByTestId('size-12').click();
+  await page.getByTestId('start-game').click();
   await expect(page.getByTestId('game-board')).toBeVisible();
+  await expect(page.getByText('高級 · 12×12')).toBeVisible();
+  await expect(page.locator('[data-testid^="cell-"]')).toHaveCount(144);
   const cell = page.getByTestId('cell-0-0');
   await cell.click();
   await expect(cell).toHaveAttribute('aria-label', /叉號/);

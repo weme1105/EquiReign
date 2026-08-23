@@ -8,11 +8,12 @@ import { findRuleConflicts, validateCompletedBoard } from '../src/game-core/rule
 import { createGameSession, cycleCell, isGivenQueen, placeQueen, queenFeasibilityErrors, requestHint, restart, toPuzzleResult, toggleExcluded, undo } from '../src/game-core/session.ts';
 import { countSolutions, extractFirstSolution, findLogicalHint } from '../src/game-core/solver.ts';
 import type { BoardSnapshot, Difficulty, PuzzleDefinition } from '../src/game-core/types.ts';
-import { DIFFICULTY_ORDER, getPuzzle } from '../src/puzzles/catalog.ts';
+import { BOARD_SIZES, DIFFICULTY_ORDER, getPuzzle } from '../src/puzzles/catalog.ts';
 
-test('catalog puzzles have valid regions, policy givens, and exactly one solution', () => {
-  for (const difficulty of DIFFICULTY_ORDER) {
-    const puzzle = getPuzzle(difficulty);
+test('difficulty and board size combine independently into valid unique puzzles', () => {
+  for (const difficulty of DIFFICULTY_ORDER) for (const size of BOARD_SIZES) {
+    const puzzle = getPuzzle(difficulty, size);
+    assert.equal(puzzle.size, size);
     assert.doesNotThrow(() => validatePuzzle(puzzle));
     assert.equal(puzzle.givenQueens.length, DIFFICULTIES[difficulty].givenQueenCount);
     assert.equal(countSolutions(createBoard(puzzle), 2), 1);
