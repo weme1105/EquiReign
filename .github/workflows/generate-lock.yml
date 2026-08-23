@@ -4,6 +4,8 @@ on:
   push:
     branches: [feature/complete-region-game]
     paths: [package.json, .github/workflows/generate-lock.yml]
+  pull_request:
+    paths: [package.json, .github/workflows/generate-lock.yml]
 
 jobs:
   lockfile:

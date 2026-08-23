@@ -57,7 +57,9 @@ function growUniqueRegions(size: number, queens: readonly number[], random: () =
       regions[option.index] = -1;
     }
     if (!accepted) return null;
-    sizes[accepted.region]! += 1; frontier.delete(accepted.index); addFrontier(Math.floor(accepted.index / size), accepted.index % size);
+    sizes[accepted.region] = sizes[accepted.region]! + 1;
+    frontier.delete(accepted.index);
+    addFrontier(Math.floor(accepted.index / size), accepted.index % size);
   }
   return regions;
 }
