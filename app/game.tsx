@@ -3,18 +3,21 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { DIFFICULTIES } from '../src/game-core/difficulty.ts';
 import { createGameSession, cycleCell, requestHint, restart, toPuzzleResult, toggleExcluded, undo } from '../src/game-core/session.ts';
-import type { Difficulty } from '../src/game-core/types.ts';
+import type { BoardSize, Difficulty } from '../src/game-core/types.ts';
 import { GameBoard } from '../src/features/game/GameBoard.tsx';
 import { getPuzzle } from '../src/puzzles/catalog.ts';
 
 function parseDifficulty(value: string | string[] | undefined): Difficulty {
   return value === 'beginner' || value === 'intermediate' || value === 'advanced' || value === 'expert' || value === 'king' ? value : 'beginner';
 }
+function parseSize(value: string | string[] | undefined): BoardSize {
+  const parsed = Number(value); return parsed === 6 || parsed === 7 || parsed === 8 || parsed === 9 || parsed === 10 || parsed === 11 || parsed === 12 ? parsed : 8;
+}
 function formatTime(ms: number): string { const seconds = Math.floor(ms / 1000); return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`; }
 
 export default function GameScreen() {
-  const params = useLocalSearchParams<{ difficulty?: string }>(); const difficulty = parseDifficulty(params.difficulty);
-  const puzzle = useMemo(() => getPuzzle(difficulty), [difficulty]);
+  const params = useLocalSearchParams<{ difficulty?: string; size?: string }>(); const difficulty = parseDifficulty(params.difficulty); const size = parseSize(params.size);
+  const puzzle = useMemo(() => getPuzzle(difficulty, size), [difficulty, size]);
   const activePuzzleId = useRef(puzzle.id);
   const [isReady, setIsReady] = useState(false);
   const [session, setSession] = useState(() => createGameSession(puzzle)); const [now, setNow] = useState(Date.now());
@@ -30,11 +33,11 @@ export default function GameScreen() {
   if (session.status === 'completed') return <SafeAreaView accessibilityLabel="遊戲已就緒" style={styles.screen} testID="game-screen"><View style={styles.completed} testID="completion-screen">
     <Text style={styles.crown}>♛</Text><Text style={styles.completedTitle}>王冠歸位</Text><Text style={styles.completedMeta}>{formatTime(result.elapsedTimeMs)} · {session.history.length} 步 · 提示 {result.hintsUsed}</Text>
     <Pressable accessibilityRole="button" onPress={() => setSession(restart(session))} style={styles.primary} testID="play-again"><Text style={styles.primaryText}>再玩一次</Text></Pressable>
-    <Pressable accessibilityRole="button" onPress={() => router.replace('/')} style={styles.secondary}><Text style={styles.secondaryText}>選擇其他難度</Text></Pressable>
+    <Pressable accessibilityRole="button" onPress={() => router.replace('/')} style={styles.secondary}><Text style={styles.secondaryText}>選擇其他選項</Text></Pressable>
   </View></SafeAreaView>;
 
   return <SafeAreaView accessibilityLabel={isReady ? '遊戲已就緒' : '遊戲載入中'} style={styles.screen} testID="game-screen"><View style={styles.header}>
-    <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.back}>‹ 難度</Text></Pressable><View style={styles.headerCenter}><Text style={[styles.level, { color: policy.accent }]}>{policy.label}</Text><Text style={styles.timer} testID="timer">{formatTime(result.elapsedTimeMs)}</Text></View>
+    <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.back}>‹ 選項</Text></Pressable><View style={styles.headerCenter}><Text style={[styles.level, { color: policy.accent }]}>{policy.label} · {size}×{size}</Text><Text style={styles.timer} testID="timer">{formatTime(result.elapsedTimeMs)}</Text></View>
     <Pressable accessibilityRole="button" onPress={() => router.push('/settings')} testID="game-settings"><Text style={styles.back}>設定</Text></Pressable>
   </View><View style={styles.content}>
     <GameBoard session={session} onPress={(row, column) => setSession((current) => cycleCell(current, { row, column }))} onLongPress={(row, column) => setSession((current) => toggleExcluded(current, { row, column }))} />

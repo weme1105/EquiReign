@@ -1,4 +1,5 @@
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced' | 'expert' | 'king';
+export type BoardSize = 6 | 7 | 8 | 9 | 10 | 11 | 12;
 export type CellState = 'empty' | 'excluded' | 'queen';
 export type GameStatus = 'ready' | 'playing' | 'completed';
 
@@ -22,7 +23,6 @@ export interface BoardSnapshot {
 
 export interface DifficultyPolicy {
   readonly label: string;
-  readonly boardSize: number;
   readonly givenQueenCount: number;
   readonly realtimeQueenValidation: boolean;
   readonly hintLimit: number;
