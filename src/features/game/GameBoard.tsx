@@ -7,9 +7,10 @@ import type { GameState } from '../../game-core/types';
 interface GameBoardProps {
   readonly state: GameState;
   readonly onCellPress: (row: number, column: number) => void;
+  readonly onCellLongPress: (row: number, column: number) => void;
 }
 
-export function GameBoard({ state, onCellPress }: GameBoardProps) {
+export function GameBoard({ state, onCellPress, onCellLongPress }: GameBoardProps) {
   const { width } = useWindowDimensions();
   const boardSize = Math.min(width - 32, 520);
   const cellSize = boardSize / state.puzzle.size;
@@ -25,12 +26,14 @@ export function GameBoard({ state, onCellPress }: GameBoardProps) {
           const conflicted = hasQueen && conflicts.has(row);
           const wrongAnswer = hasQueen && realtimeValidation && state.puzzle.solution[row] !== column;
           const hinted = state.hintTarget?.row === row && state.hintTarget.column === column;
+          const excluded = state.exclusions[row]?.[column] ?? false;
           return (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`Row ${row + 1}, column ${column + 1}${hasQueen ? ', queen' : ''}`}
               key={`${row}-${column}`}
               onPress={() => onCellPress(row, column)}
+              onLongPress={() => onCellLongPress(row, column)}
               style={[
                 styles.cell,
                 { width: cellSize, height: cellSize },
@@ -40,6 +43,7 @@ export function GameBoard({ state, onCellPress }: GameBoardProps) {
               ]}
             >
               {hasQueen && <Text style={[styles.queen, locked && styles.locked]}>♛</Text>}
+              {!hasQueen && excluded && <Text style={styles.excluded}>×</Text>}
             </Pressable>
           );
         }),
@@ -57,4 +61,5 @@ const styles = StyleSheet.create({
   hinted: { borderColor: '#fff2a8', borderWidth: 3 },
   queen: { color: '#17142a', fontSize: 30, lineHeight: 36 },
   locked: { color: '#d6a827' },
+  excluded: { color: '#514b67', fontSize: 24, fontWeight: '500' },
 });

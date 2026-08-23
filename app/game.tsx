@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { createGame, placeQueen, requestHint } from '../src/game-core/game';
+import { createGame, placeQueen, requestHint, toggleExclusion } from '../src/game-core/game';
 import { DIFFICULTIES } from '../src/game-core/difficulty';
 import type { Difficulty } from '../src/game-core/types';
 import { GameBoard } from '../src/features/game/GameBoard';
@@ -43,8 +43,12 @@ export default function GameScreen() {
           </View>
         ) : (
           <>
-            <GameBoard state={state} onCellPress={(row, column) => setState((current) => placeQueen(current, row, column))} />
-            <Text style={styles.instruction}>Gold queens are fixed. Red queens threaten each other.</Text>
+            <GameBoard
+              state={state}
+              onCellPress={(row, column) => setState((current) => placeQueen(current, row, column))}
+              onCellLongPress={(row, column) => setState((current) => toggleExclusion(current, row, column))}
+            />
+            <Text style={styles.instruction}>Tap for a queen · Hold for X · Gold queens are fixed</Text>
             {config.maxHints > 0 && (
               <Pressable
                 disabled={state.hintsRemaining === 0}

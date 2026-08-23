@@ -49,5 +49,12 @@ export function validatePuzzle(puzzle: PuzzleDefinition): void {
     }
     givenRows.add(given.row);
   }
-}
 
+  for (const step of puzzle.hintSequence) {
+    const { row, column } = step.position;
+    const expected = puzzle.solution[row] === column ? 'queen' : 'excluded';
+    if (row < 0 || row >= puzzle.size || column < 0 || column >= puzzle.size || step.expected !== expected) {
+      throw new Error(`Puzzle ${puzzle.id} has an invalid hint step.`);
+    }
+  }
+}
