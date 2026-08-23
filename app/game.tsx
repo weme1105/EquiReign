@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { DIFFICULTIES } from '../src/game-core/difficulty.ts';
 import { createGameSession, cycleCell, requestHint, restart, toPuzzleResult, toggleExcluded, undo } from '../src/game-core/session.ts';
@@ -15,8 +15,13 @@ function formatTime(ms: number): string { const seconds = Math.floor(ms / 1000);
 export default function GameScreen() {
   const params = useLocalSearchParams<{ difficulty?: string }>(); const difficulty = parseDifficulty(params.difficulty);
   const puzzle = useMemo(() => getPuzzle(difficulty), [difficulty]);
+  const activePuzzleId = useRef(puzzle.id);
   const [session, setSession] = useState(() => createGameSession(puzzle)); const [now, setNow] = useState(Date.now());
-  useEffect(() => { const startedAt = Date.now(); setSession(createGameSession(puzzle, startedAt)); setNow(startedAt); }, [puzzle]);
+  useEffect(() => {
+    if (activePuzzleId.current === puzzle.id) return;
+    activePuzzleId.current = puzzle.id; const startedAt = Date.now();
+    setSession(createGameSession(puzzle, startedAt)); setNow(startedAt);
+  }, [puzzle]);
   useEffect(() => { if (session.status === 'completed') return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [session.status]);
   const policy = DIFFICULTIES[difficulty]; const result = toPuzzleResult(session, now); const hintsLeft = policy.hintLimit - session.hintsUsed;
 
