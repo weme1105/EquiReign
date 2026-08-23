@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detect application scaffold
+        id: app
+        shell: bash
+        run: |
+          if [ -f package.json ] && [ -f package-lock.json ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Application scaffold not present yet; CI bootstrap check only."
+          fi
+
+      - uses: actions/setup-node@v4
+        if: steps.app.outputs.ready == 'true'
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies reproducibly
+        if: steps.app.outputs.ready == 'true'
+        run: npm ci
+
+      - name: Lint
+        if: steps.app.outputs.ready == 'true'
+        run: npm run lint
+
+      - name: TypeScript typecheck
+        if: steps.app.outputs.ready == 'true'
+        run: npm run typecheck
+
+      - name: Unit tests
+        if: steps.app.outputs.ready == 'true'
+        run: npm test
+
+      - name: Unit test coverage (70/70/70/70 gate)
+        if: steps.app.outputs.ready == 'true'
+        run: npm run test:coverage
+
+      - name: Dependency audit
+        if: steps.app.outputs.ready == 'true'
+        run: npm run audit
+
+      - name: Production build
+        if: steps.app.outputs.ready == 'true'
+        run: npm run build
+
+      - name: Install Playwright Chromium and WebKit
+        if: steps.app.outputs.ready == 'true'
+        run: npx playwright install --with-deps chromium webkit
+
+      - name: Browser E2E tests
+        if: steps.app.outputs.ready == 'true'
+        run: npm run e2e
+
+      - name: Upload Playwright report
+        if: always() && steps.app.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload Playwright failure artifacts
+        if: failure() && steps.app.outputs.ready == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
