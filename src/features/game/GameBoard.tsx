@@ -35,6 +35,6 @@ const styles = StyleSheet.create({
   board: { borderColor: '#d6b870', borderRadius: 10, borderWidth: 3, flexDirection: 'row', flexWrap: 'wrap', overflow: 'hidden' },
   cell: { alignItems: 'center', borderColor: 'rgba(23,20,42,.12)', borderWidth: .5, justifyContent: 'center', position: 'relative' },
   error: { backgroundColor: '#d86470' }, hinted: { borderColor: '#fff29d', borderWidth: 4 }, queen: { color: '#17142a', fontSize: 29, lineHeight: 35 },
-  given: { color: '#9b6a08', textShadowColor: 'rgba(255,255,255,.7)', textShadowRadius: 2 }, excluded: { color: '#514b67', fontSize: 23, fontWeight: '500' },
+  given: { color: '#9b6a08' }, excluded: { color: '#514b67', fontSize: 23, fontWeight: '500' },
   hintDot: { backgroundColor: '#fff29d', borderRadius: 5, height: 9, position: 'absolute', right: 3, top: 3, width: 9 },
 });

@@ -16,28 +16,29 @@ export default function GameScreen() {
   const params = useLocalSearchParams<{ difficulty?: string }>(); const difficulty = parseDifficulty(params.difficulty);
   const puzzle = useMemo(() => getPuzzle(difficulty), [difficulty]);
   const [session, setSession] = useState(() => createGameSession(puzzle)); const [now, setNow] = useState(Date.now());
+  useEffect(() => { const startedAt = Date.now(); setSession(createGameSession(puzzle, startedAt)); setNow(startedAt); }, [puzzle]);
   useEffect(() => { if (session.status === 'completed') return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [session.status]);
   const policy = DIFFICULTIES[difficulty]; const result = toPuzzleResult(session, now); const hintsLeft = policy.hintLimit - session.hintsUsed;
 
   if (session.status === 'completed') return <SafeAreaView style={styles.screen}><View style={styles.completed} testID="completion-screen">
     <Text style={styles.crown}>♛</Text><Text style={styles.completedTitle}>王冠歸位</Text><Text style={styles.completedMeta}>{formatTime(result.elapsedTimeMs)} · {session.history.length} 步 · 提示 {result.hintsUsed}</Text>
-    <Pressable onPress={() => setSession(restart(session))} style={styles.primary} testID="play-again"><Text style={styles.primaryText}>再玩一次</Text></Pressable>
-    <Pressable onPress={() => router.replace('/')} style={styles.secondary}><Text style={styles.secondaryText}>選擇其他難度</Text></Pressable>
+    <Pressable accessibilityRole="button" onPress={() => setSession(restart(session))} style={styles.primary} testID="play-again"><Text style={styles.primaryText}>再玩一次</Text></Pressable>
+    <Pressable accessibilityRole="button" onPress={() => router.replace('/')} style={styles.secondary}><Text style={styles.secondaryText}>選擇其他難度</Text></Pressable>
   </View></SafeAreaView>;
 
   return <SafeAreaView style={styles.screen}><View style={styles.header}>
-    <Pressable onPress={() => router.back()}><Text style={styles.back}>‹ 難度</Text></Pressable><View style={styles.headerCenter}><Text style={[styles.level, { color: policy.accent }]}>{policy.label}</Text><Text style={styles.timer} testID="timer">{formatTime(result.elapsedTimeMs)}</Text></View>
-    <Pressable onPress={() => router.push('/settings')} testID="game-settings"><Text style={styles.back}>設定</Text></Pressable>
+    <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.back}>‹ 難度</Text></Pressable><View style={styles.headerCenter}><Text style={[styles.level, { color: policy.accent }]}>{policy.label}</Text><Text style={styles.timer} testID="timer">{formatTime(result.elapsedTimeMs)}</Text></View>
+    <Pressable accessibilityRole="button" onPress={() => router.push('/settings')} testID="game-settings"><Text style={styles.back}>設定</Text></Pressable>
   </View><View style={styles.content}>
     <GameBoard session={session} onPress={(row, column) => setSession((current) => cycleCell(current, { row, column }))} onLongPress={(row, column) => setSession((current) => toggleExcluded(current, { row, column }))} />
     <Text style={styles.instruction}>點擊：空白 → × → 皇后 · 金色皇后不可修改</Text>
     {session.completionError && <Text style={styles.errorText} testID="completion-error">盤面尚未正確完成，請檢查紅色衝突。</Text>}
     <View style={styles.actions}>
-      <Pressable disabled={!session.history.length} onPress={() => setSession(undo)} style={[styles.action, !session.history.length && styles.disabled]} testID="undo-button"><Text style={styles.actionText}>Undo</Text></Pressable>
-      <Pressable onPress={() => setSession((current) => restart(current))} style={styles.action} testID="restart-button"><Text style={styles.actionText}>Restart</Text></Pressable>
-      {policy.hintLimit > 0 && <Pressable disabled={!hintsLeft || !!session.hintTarget} onPress={() => setSession(requestHint)} style={[styles.hint, (!hintsLeft || !!session.hintTarget) && styles.disabled]} testID="hint-button"><Text style={styles.hintText}>提示 {hintsLeft}</Text></Pressable>}
+      <Pressable accessibilityRole="button" disabled={!session.history.length} onPress={() => setSession(undo)} style={[styles.action, !session.history.length && styles.disabled]} testID="undo-button"><Text style={styles.actionText}>Undo</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => setSession((current) => restart(current))} style={styles.action} testID="restart-button"><Text style={styles.actionText}>Restart</Text></Pressable>
+      {policy.hintLimit > 0 && <Pressable accessibilityRole="button" disabled={!hintsLeft || !!session.hintTarget} onPress={() => setSession(requestHint)} style={[styles.hint, (!hintsLeft || !!session.hintTarget) && styles.disabled]} testID="hint-button"><Text style={styles.hintText}>提示 {hintsLeft}</Text></Pressable>}
     </View>
-    <View style={styles.help}><Pressable onPress={() => router.push({ pathname: '/help', params: { tab: 'operation' } })}><Text style={styles.helpText}>操作</Text></Pressable><Pressable onPress={() => router.push({ pathname: '/help', params: { tab: 'rules' } })}><Text style={styles.helpText}>規則</Text></Pressable></View>
+    <View style={styles.help}><Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/help', params: { tab: 'operation' } })}><Text style={styles.helpText}>操作</Text></Pressable><Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/help', params: { tab: 'rules' } })}><Text style={styles.helpText}>規則</Text></Pressable></View>
   </View></SafeAreaView>;
 }
 

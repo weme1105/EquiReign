@@ -66,9 +66,15 @@ test('Expert hints highlight without revealing and stop after three', async ({ p
 
 test('a complete legal board reaches the completion screen', async ({ page }) => {
   await page.goto('/game?difficulty=advanced');
-  for (const [row, column] of [[0,6],[1,2],[2,4],[3,7],[4,5],[5,0],[6,3],[7,1]]) {
+  const solution = [[0,6],[1,2],[2,4],[3,7],[4,5],[5,0],[6,3],[7,1]];
+  for (const [row, column] of solution.slice(0, -1)) {
     const cell = page.getByTestId(`cell-${row}-${column}`);
     await markQueen(cell);
   }
+  const [lastRow, lastColumn] = solution.at(-1)!;
+  const lastCell = page.getByTestId(`cell-${lastRow}-${lastColumn}`);
+  await lastCell.click();
+  await expect(lastCell).toHaveAttribute('aria-label', /叉號/);
+  await lastCell.click();
   await expect(page.getByTestId('completion-screen')).toBeVisible();
 });
