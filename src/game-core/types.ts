@@ -1,37 +1,74 @@
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced' | 'expert' | 'king';
+export type CellState = 'empty' | 'excluded' | 'queen';
+export type GameStatus = 'ready' | 'playing' | 'completed';
 
-export interface Position {
-  readonly row: number;
-  readonly column: number;
-}
+export interface Position { readonly row: number; readonly column: number }
 
 export interface PuzzleDefinition {
   readonly id: string;
   readonly difficulty: Difficulty;
   readonly size: number;
-  readonly solution: readonly number[];
-  readonly givens: readonly Position[];
-  readonly hintSequence: readonly HintStep[];
+  /** Row-major region id. Exactly size regions numbered 0..size-1. */
+  readonly regionMap: readonly number[];
+  /** Fixed queens are puzzle metadata, never a distinct cell state. */
+  readonly givenQueens: readonly Position[];
 }
 
-export interface HintStep {
-  readonly position: Position;
-  readonly expected: 'queen' | 'excluded';
+export interface BoardSnapshot {
+  readonly size: number;
+  readonly regionMap: readonly number[];
+  readonly cells: readonly CellState[];
 }
 
-export type GameStatus = 'playing' | 'completed';
+export interface DifficultyPolicy {
+  readonly label: string;
+  readonly boardSize: number;
+  readonly givenQueenCount: number;
+  readonly realtimeQueenValidation: boolean;
+  readonly hintLimit: number;
+  readonly completionValidation: 'full-board';
+  readonly accent: string;
+}
 
-export interface GameState {
+export interface BoardHistoryEntry {
+  readonly cells: readonly CellState[];
+  readonly completionError: boolean;
+}
+
+export interface GameSession {
   readonly puzzle: PuzzleDefinition;
-  readonly queens: readonly (number | null)[];
-  readonly exclusions: readonly (readonly boolean[])[];
+  readonly difficulty: Difficulty;
+  readonly boardState: BoardSnapshot;
+  readonly history: readonly BoardHistoryEntry[];
+  readonly hintsUsed: number;
   readonly hintTarget: Position | null;
-  readonly hintsRemaining: number;
+  readonly startedAtMs: number;
+  readonly completedAtMs: number | null;
   readonly status: GameStatus;
-  readonly moves: number;
+  readonly completionError: boolean;
 }
 
+export interface PuzzleResult {
+  readonly puzzleId: string;
+  readonly difficulty: Difficulty;
+  readonly size: number;
+  readonly elapsedTimeMs: number;
+  readonly hintsUsed: number;
+  readonly completed: boolean;
+}
+
+export type ConflictReason = 'row' | 'column' | 'region' | 'adjacent';
 export interface ConflictMap {
-  readonly rows: ReadonlySet<number>;
-  readonly positions: readonly Position[];
+  readonly positions: ReadonlySet<string>;
+  readonly reasons: ReadonlySet<ConflictReason>;
+}
+
+export interface GeneratedPuzzle {
+  readonly size: number;
+  readonly regionMap: readonly number[];
+  readonly solution: readonly Position[];
+}
+
+export interface PuzzleGenerator {
+  generate(size: number, seed?: number): GeneratedPuzzle;
 }

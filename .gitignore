@@ -1,8 +1,8 @@
 node_modules/
 .expo/
 dist/
-web-build/
 coverage/
+playwright-report/
+test-results/
 *.log
 .DS_Store
-

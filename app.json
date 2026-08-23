@@ -2,28 +2,15 @@
   "expo": {
     "name": "EquiReign",
     "slug": "equireign",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "scheme": "equireign",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.weme1105.equireign"
-    },
-    "android": {
-      "package": "com.weme1105.equireign",
-      "adaptiveIcon": {
-        "backgroundColor": "#17142a"
-      }
-    },
-    "web": {
-      "bundler": "metro",
-      "output": "static"
-    },
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.weme1105.equireign" },
+    "android": { "package": "com.weme1105.equireign", "adaptiveIcon": { "backgroundColor": "#17142a" } },
+    "web": { "bundler": "metro", "output": "static" },
     "plugins": ["expo-router"],
-    "experiments": {
-      "typedRoutes": true
-    }
+    "experiments": { "typedRoutes": true }
   }
 }

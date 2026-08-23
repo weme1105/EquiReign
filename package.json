@@ -1,6 +1,6 @@
 {
   "name": "equireign",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "main": "expo-router/entry",
@@ -9,8 +9,13 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "build": "expo export --platform web --output-dir dist",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --test --experimental-strip-types tests/*.test.ts"
+    "test": "node --test --experimental-strip-types tests/*.test.ts",
+    "test:coverage": "node --experimental-strip-types --test --experimental-test-coverage --test-coverage-lines=70 --test-coverage-functions=70 --test-coverage-branches=70 tests/*.test.ts",
+    "audit": "npm audit --audit-level=high",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "expo": "~57.0.9",
@@ -24,7 +29,12 @@
     "react-native-web": "~0.21.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^24.10.0",
     "@types/react": "~19.2.2",
-    "typescript": "~6.0.3"
+    "eslint": "^9.39.2",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.54.0"
   }
 }
