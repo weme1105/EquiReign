@@ -4,6 +4,8 @@ import { createBoard, withCell } from '../src/game-core/board.ts';
 import { DIFFICULTIES } from '../src/game-core/difficulty.ts';
 import { costTier, rankSolverCosts } from '../src/game-core/complexity.ts';
 import { rankPuzzlePool, selectLevel, type PuzzlePoolCandidate } from '../src/game-core/levels.ts';
+import { createInfinitePresentation, isLostCell } from '../src/game-core/infinite.ts';
+import { campaignDifficulty, campaignStage, challengeNextLevel, completeCampaignLevel, completeChallengeLevel, createPlayerProgress, isChallengeUnlocked, PUZZLE_POOL_TARGETS, recordFirstClear, resolveChallengeSelection } from '../src/game-core/progression.ts';
 import { RegionPuzzleGenerator } from '../src/game-core/generator.ts';
 import { validatePuzzle } from '../src/game-core/puzzle.ts';
 import { findRuleConflicts, validateCompletedBoard } from '../src/game-core/rules.ts';
@@ -12,6 +14,59 @@ import { analyzeSolutions, countSolutions, extractFirstSolution, findLogicalHint
 import type { BoardSnapshot, Difficulty, PuzzleDefinition } from '../src/game-core/types.ts';
 import { BOARD_SIZES, DIFFICULTY_ORDER, getPuzzle } from '../src/puzzles/catalog.ts';
 import { decodeSession, encodeSession } from '../src/storage/session-codec.ts';
+import { decodeProgress, encodeProgress } from '../src/storage/progress-codec.ts';
+
+test('campaign advances every 200 levels and becomes infinite after level 1000', () => {
+  assert.equal(campaignStage(1), 'beginner');
+  assert.equal(campaignStage(200), 'beginner');
+  assert.equal(campaignStage(201), 'intermediate');
+  assert.equal(campaignStage(401), 'advanced');
+  assert.equal(campaignStage(601), 'expert');
+  assert.equal(campaignStage(801), 'king');
+  assert.equal(campaignStage(1001), 'infinite');
+  assert.equal(campaignDifficulty(1001), 'king');
+  assert.equal(campaignDifficulty(1005), 'king');
+  assert.equal(campaignDifficulty(1006), 'king');
+  assert.deepEqual(PUZZLE_POOL_TARGETS, { beginner: 100, intermediate: 200, advanced: 300, expert: 400, king: 500, infinite: 1000 });
+});
+
+test('infinite lost cells remain presentation-only and may contain a correct crown', () => {
+  const puzzle = getPuzzle('king', 6);
+  const solution = extractFirstSolution(createBoard(puzzle))!;
+  const crown = solution[0]!;
+  const crownIndex = crown.row * puzzle.size + crown.column;
+  const randomValues = Array.from({ length: 36 }, (_, index) => index === crownIndex ? 0 : .5);
+  const presentation = createInfinitePresentation(6, 1, randomValues);
+  assert.equal(isLostCell(presentation, 6, crown), true);
+  assert.equal(countSolutions(createBoard(puzzle), 2), 1, 'presentation loss must not alter the solver board');
+});
+
+test('challenge unlocks after beginner campaign and tracks every difficulty-size pair independently', () => {
+  let progress = createPlayerProgress();
+  assert.equal(isChallengeUnlocked(progress), false);
+  for (let level = 1; level <= 200; level += 1) progress = completeCampaignLevel(progress, level);
+  assert.equal(isChallengeUnlocked(progress), true);
+  const expert8 = { difficulty: 'expert', size: 8 } as const;
+  const expert9 = { difficulty: 'expert', size: 9 } as const;
+  progress = completeChallengeLevel(progress, expert8, 1);
+  assert.equal(challengeNextLevel(progress, expert8), 2);
+  assert.equal(challengeNextLevel(progress, expert9), 1);
+  assert.deepEqual(decodeProgress(encodeProgress(progress)), progress);
+});
+
+test('challenge selection supports independently random difficulty and board size', () => {
+  assert.deepEqual(resolveChallengeSelection({ difficulty: 'random', size: 'random', difficultyRandomValue: .99, sizeRandomValue: 0 }), { difficulty: 'king', size: 6 });
+  assert.deepEqual(resolveChallengeSelection({ difficulty: 'advanced', size: 'random', sizeRandomValue: .99 }), { difficulty: 'advanced', size: 12 });
+});
+
+test('a successful replay never overwrites the first clear result', () => {
+  const initial = createPlayerProgress();
+  const first = { elapsedTimeMs: 12_000, hintsUsed: 2, completedAtMs: 100_000 };
+  const saved = recordFirstClear(initial, 'campaign:10', first);
+  const replayed = recordFirstClear(saved, 'campaign:10', { elapsedTimeMs: 8_000, hintsUsed: 0, completedAtMs: 200_000 });
+  assert.equal(replayed, saved);
+  assert.deepEqual(replayed.firstClearResults['campaign:10'], first);
+});
 
 test('difficulty and board size combine independently into valid unique puzzles', () => {
   for (const difficulty of DIFFICULTY_ORDER) for (const size of BOARD_SIZES) {
