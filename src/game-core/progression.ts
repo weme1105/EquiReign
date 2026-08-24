@@ -52,6 +52,17 @@ export function campaignDifficulty(level: number): Difficulty {
   return 'king';
 }
 
+/** Beginner introduces sizes gradually; later stages use a stable level-based shuffle. */
+export function campaignBoardSize(level: number): BoardSize {
+  assertLevel(level);
+  if (level <= CAMPAIGN_LEVELS_PER_STAGE) {
+    const index = Math.floor((level - 1) * BOARD_SIZE_ORDER.length / CAMPAIGN_LEVELS_PER_STAGE);
+    return BOARD_SIZE_ORDER[Math.min(index, BOARD_SIZE_ORDER.length - 1)]!;
+  }
+  const mixed = Math.imul(level ^ 0x9e3779b9, 0x85ebca6b) >>> 0;
+  return BOARD_SIZE_ORDER[mixed % BOARD_SIZE_ORDER.length]!;
+}
+
 export function isChallengeUnlocked(progress: PlayerProgress): boolean {
   return progress.completedCampaignLevel >= CHALLENGE_UNLOCK_LEVEL;
 }
