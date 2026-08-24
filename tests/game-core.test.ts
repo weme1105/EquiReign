@@ -9,6 +9,7 @@ import { createGameSession, cycleCell, isGivenQueen, placeQueen, queenFeasibilit
 import { countSolutions, extractFirstSolution, findLogicalHint } from '../src/game-core/solver.ts';
 import type { BoardSnapshot, Difficulty, PuzzleDefinition } from '../src/game-core/types.ts';
 import { BOARD_SIZES, DIFFICULTY_ORDER, getPuzzle } from '../src/puzzles/catalog.ts';
+import { decodeSession, encodeSession } from '../src/storage/session-codec.ts';
 
 test('difficulty and board size combine independently into valid unique puzzles', () => {
   for (const difficulty of DIFFICULTY_ORDER) for (const size of BOARD_SIZES) {
@@ -147,4 +148,18 @@ test('deterministic generator fulfills the PuzzleGenerator contract', () => {
 test('invalid region definitions are rejected', () => {
   const invalid: PuzzleDefinition = { ...getPuzzle('advanced'), regionMap: Array.from({ length: 64 }, () => 0) };
   assert.throws(() => validatePuzzle(invalid), /region ids/);
+});
+
+test('active sessions survive a versioned local save round trip', () => {
+  let session = createGameSession(getPuzzle('expert', 12), 1234);
+  session = cycleCell(session, { row: 0, column: 0 }, 2000);
+  session = requestHint(session);
+  assert.deepEqual(decodeSession(encodeSession(session, 3000)), session);
+});
+
+test('corrupt or structurally invalid local saves are ignored', () => {
+  assert.equal(decodeSession('{not-json'), null);
+  const session = createGameSession(getPuzzle('beginner', 6));
+  const invalid = JSON.stringify({ version: 1, savedAtMs: Date.now(), session: { ...session, hintsUsed: 99 } });
+  assert.equal(decodeSession(invalid), null);
 });

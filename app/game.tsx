@@ -1,11 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { DIFFICULTIES } from '../src/game-core/difficulty.ts';
 import { createGameSession, cycleCell, requestHint, restart, toPuzzleResult, toggleExcluded, undo } from '../src/game-core/session.ts';
 import type { BoardSize, Difficulty } from '../src/game-core/types.ts';
 import { GameBoard } from '../src/features/game/GameBoard.tsx';
 import { getPuzzle } from '../src/puzzles/catalog.ts';
+import { clearActiveSession, loadActiveSession, saveActiveSession } from '../src/storage/active-session-storage';
 
 function parseDifficulty(value: string | string[] | undefined): Difficulty {
   return value === 'beginner' || value === 'intermediate' || value === 'advanced' || value === 'expert' || value === 'king' ? value : 'beginner';
@@ -16,19 +17,25 @@ function parseSize(value: string | string[] | undefined): BoardSize {
 function formatTime(ms: number): string { const seconds = Math.floor(ms / 1000); return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`; }
 
 export default function GameScreen() {
-  const params = useLocalSearchParams<{ difficulty?: string; size?: string }>(); const difficulty = parseDifficulty(params.difficulty); const size = parseSize(params.size);
+  const params = useLocalSearchParams<{ difficulty?: string; size?: string; resume?: string }>(); const difficulty = parseDifficulty(params.difficulty); const size = parseSize(params.size); const resumeSaved = params.resume === '1';
   const puzzle = useMemo(() => getPuzzle(difficulty, size), [difficulty, size]);
-  const activePuzzleId = useRef(puzzle.id);
   const [isReady, setIsReady] = useState(false);
   const [session, setSession] = useState(() => createGameSession(puzzle)); const [now, setNow] = useState(Date.now());
-  useEffect(() => setIsReady(true), []);
   useEffect(() => {
-    if (activePuzzleId.current === puzzle.id) return;
-    activePuzzleId.current = puzzle.id; const startedAt = Date.now();
-    setSession(createGameSession(puzzle, startedAt)); setNow(startedAt);
-  }, [puzzle]);
+    let active = true; setIsReady(false);
+    void (async () => {
+      const saved = resumeSaved ? await loadActiveSession() : null;
+      const next = saved?.puzzle.id === puzzle.id && saved.status !== 'completed' ? saved : createGameSession(puzzle);
+      if (!active) return;
+      setSession(next); setNow(Date.now()); setIsReady(true);
+    })();
+    return () => { active = false; };
+  }, [puzzle, resumeSaved]);
+  useEffect(() => { if (!isReady) return; if (session.status === 'completed') void clearActiveSession(); else void saveActiveSession(session); }, [isReady, session]);
   useEffect(() => { if (session.status === 'completed') return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [session.status]);
   const policy = DIFFICULTIES[difficulty]; const result = toPuzzleResult(session, now); const hintsLeft = policy.hintLimit - session.hintsUsed;
+
+  if (!isReady) return <SafeAreaView accessibilityLabel="遊戲載入中" style={styles.screen} testID="game-screen"><View style={styles.loading}><Text style={styles.loadingText}>讀取棋局…</Text></View></SafeAreaView>;
 
   if (session.status === 'completed') return <SafeAreaView accessibilityLabel="遊戲已就緒" style={styles.screen} testID="game-screen"><View style={styles.completed} testID="completion-screen">
     <Text style={styles.crown}>♛</Text><Text style={styles.completedTitle}>王冠歸位</Text><Text style={styles.completedMeta}>{formatTime(result.elapsedTimeMs)} · {session.history.length} 步 · 提示 {result.hintsUsed}</Text>
@@ -61,5 +68,6 @@ const styles = StyleSheet.create({
   disabled: { opacity: .35 }, help: { flexDirection: 'row', gap: 22, marginTop: 15 }, helpText: { color: '#777087', textDecorationLine: 'underline' },
   completed: { alignItems: 'center', flex: 1, justifyContent: 'center', padding: 28 }, crown: { color: '#d6b870', fontSize: 76 }, completedTitle: { color: '#fffaf1', fontSize: 32, fontWeight: '800', marginTop: 10 },
   completedMeta: { color: '#aaa4bc', marginTop: 9 }, primary: { backgroundColor: '#d6b870', borderRadius: 13, marginTop: 30, paddingHorizontal: 26, paddingVertical: 14 }, primaryText: { color: '#17142a', fontWeight: '800' },
+  loading: { alignItems: 'center', flex: 1, justifyContent: 'center' }, loadingText: { color: '#aaa4bc' },
   secondary: { marginTop: 16, padding: 8 }, secondaryText: { color: '#aaa4bc' },
 });
