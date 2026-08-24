@@ -26,7 +26,7 @@ export default function HomeScreen() {
         style={styles.continueCard} testID="continue-game"><View><Text style={styles.continueTitle}>繼續遊戲</Text><Text style={styles.continueMeta}>{DIFFICULTIES[savedSession.difficulty].label} · {savedSession.puzzle.size}×{savedSession.puzzle.size} · {savedSession.history.length} 步</Text></View><Text style={styles.continueArrow}>›</Text></Pressable>}
       <Pressable accessibilityRole="button" onPress={() => router.push('/campaign')} style={[styles.modeCard, styles.campaignCard]} testID="campaign-mode"><Text style={styles.modeCode}>CAMPAIGN</Text><Text style={styles.modeTitle}>闖關</Text><Text style={styles.modeMeta}>下一關：第 {progress.completedCampaignLevel + 1} 關</Text></Pressable>
       <Pressable accessibilityRole="button" disabled={!challengeUnlocked} onPress={() => router.push('/challenge')} style={[styles.modeCard, !challengeUnlocked && styles.disabledMode]} testID="challenge-mode"><Text style={styles.modeCode}>CHALLENGE</Text><Text style={styles.modeTitle}>難度挑戰</Text><Text style={styles.modeMeta}>{challengeUnlocked ? '選擇或隨機難度與尺寸' : `完成初級第 ${CHALLENGE_UNLOCK_LEVEL} 關後解鎖`}</Text></Pressable>
-      {challengeUnlocked && <>
+      {challengeUnlocked && false && <>
       <Text style={styles.sectionTitle}>選擇難度</Text>
       <View style={styles.options}>{DIFFICULTY_ORDER.map((option) => {
         const policy = DIFFICULTIES[option]; const selected = option === difficulty;
