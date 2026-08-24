@@ -15,7 +15,8 @@
     "test": "node --test --experimental-strip-types tests/*.test.ts",
     "test:coverage": "node --experimental-strip-types --test --experimental-test-coverage --test-coverage-lines=70 --test-coverage-functions=70 --test-coverage-branches=70 tests/*.test.ts",
     "audit": "npm audit --audit-level=high",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "puzzles:build": "node --experimental-strip-types scripts/build-puzzle-pool.ts"
   },
   "dependencies": {
     "expo": "~57.0.9",

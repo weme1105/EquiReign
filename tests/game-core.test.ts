@@ -3,6 +3,7 @@ import test from 'node:test';
 import { createBoard, withCell } from '../src/game-core/board.ts';
 import { DIFFICULTIES } from '../src/game-core/difficulty.ts';
 import { costTier, rankSolverCosts } from '../src/game-core/complexity.ts';
+import { rankPuzzlePool, selectLevel, type PuzzlePoolCandidate } from '../src/game-core/levels.ts';
 import { RegionPuzzleGenerator } from '../src/game-core/generator.ts';
 import { validatePuzzle } from '../src/game-core/puzzle.ts';
 import { findRuleConflicts, validateCompletedBoard } from '../src/game-core/rules.ts';
@@ -70,6 +71,24 @@ test('same-size solver costs receive weighted percentile tiers', () => {
   assert.deepEqual(ranked.map((item) => item.score), [0, 25, 50, 75, 100]);
   assert.deepEqual(ranked.map((item) => item.tier), ['beginner', 'intermediate', 'advanced', 'expert', 'king']);
   assert.equal(costTier(85), 'king');
+});
+
+test('level selection fixes every tenth level and randomizes the others without immediate repeats', () => {
+  const source = getPuzzle('expert', 8);
+  const candidates: PuzzlePoolCandidate[] = [10, 20, 30, 40, 50, 60].map((cost, index) => ({
+    id: `candidate-${index}`, size: 8, regionMap: source.regionMap, solution: extractFirstSolution(createBoard(source))!,
+    solverMetrics: { nodesVisited: cost, branchesTried: cost, backtracks: cost, memoHits: 0 },
+  }));
+  const ranked = rankPuzzlePool(candidates);
+  const random = selectLevel(ranked, { level: 1, size: 8, difficulty: 'expert', randomValue: 0 });
+  const next = selectLevel(ranked, { level: 2, size: 8, difficulty: 'expert', randomValue: 0, previousPuzzleId: random.puzzle.id });
+  assert.notEqual(next.puzzle.id, random.puzzle.id);
+  assert.equal(random.replayAllowed, false);
+  const bossA = selectLevel(ranked, { level: 10, size: 8, difficulty: 'king' });
+  const bossB = selectLevel(ranked, { level: 10, size: 8, difficulty: 'king', randomValue: .99 });
+  assert.equal(bossA.puzzle.id, bossB.puzzle.id);
+  assert.equal(bossA.isFixed, true);
+  assert.equal(bossA.replayAllowed, true);
 });
 
 test('given queens are immutable and never enter history', () => {
