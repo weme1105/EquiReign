@@ -50,6 +50,9 @@ export interface GameSession {
   readonly excludedPositionKeysUsed: readonly string[];
   readonly playMode: 'free' | 'campaign' | 'challenge';
   readonly campaignLevel: number | null;
+  readonly lostCellIndexes: readonly number[];
+  readonly frozenCellIndexes: readonly number[];
+  readonly revealedFrozenCellIndexes: readonly number[];
 }
 
 export interface PuzzleResult {

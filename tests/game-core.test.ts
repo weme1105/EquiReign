@@ -108,6 +108,17 @@ test('Limited X counts distinct X positions but excludes positions that finish a
   assert.equal(result.limitedXClear, true);
 });
 
+test('infinite session completes after every visible crown is correct and preserves special cells on restart', () => {
+  let session = createGameSession(getPuzzle('king', 6), 100, { playMode: 'campaign', campaignLevel: 1001 });
+  const solution = extractFirstSolution(session.boardState)!; const hidden = solution[0]!; const hiddenIndex = hidden.row * 6 + hidden.column;
+  session = { ...session, lostCellIndexes: [hiddenIndex] };
+  for (const position of solution.slice(1)) session = placeQueen(session, position, 200);
+  assert.equal(session.status, 'completed');
+  const reset = restart(session, 300);
+  assert.deepEqual(reset.lostCellIndexes, [hiddenIndex]);
+  assert.equal(reset.status, 'ready');
+});
+
 test('difficulty and board size combine independently into valid unique puzzles', () => {
   for (const difficulty of DIFFICULTY_ORDER) for (const size of BOARD_SIZES) {
     const puzzle = getPuzzle(difficulty, size);
