@@ -93,6 +93,21 @@ test('a successful replay never overwrites the first clear result', () => {
   assert.deepEqual(replayed.firstClearResults['campaign:10'], first);
 });
 
+test('Limited X counts distinct X positions but excludes positions that finish as crowns', () => {
+  let session = createGameSession(getPuzzle('advanced', 6));
+  const solution = extractFirstSolution(session.boardState)!;
+  const crown = solution[0]!;
+  session = toggleExcluded(session, crown);
+  session = toggleExcluded(session, crown);
+  session = toggleExcluded(session, crown);
+  session = cycleCell(session, crown);
+  for (const position of solution.slice(1)) session = placeQueen(session, position);
+  const result = toPuzzleResult(session);
+  assert.equal(session.excludedPositionKeysUsed.length, 1);
+  assert.equal(result.effectiveExcludedCount, 0);
+  assert.equal(result.limitedXClear, true);
+});
+
 test('difficulty and board size combine independently into valid unique puzzles', () => {
   for (const difficulty of DIFFICULTY_ORDER) for (const size of BOARD_SIZES) {
     const puzzle = getPuzzle(difficulty, size);

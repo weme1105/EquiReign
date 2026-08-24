@@ -42,8 +42,19 @@ function isValidSession(value: unknown): value is GameSession {
   if (!Number.isFinite(session.startedAtMs) || (session.completedAtMs !== null && !Number.isFinite(session.completedAtMs))) return false;
   if (session.status !== 'ready' && session.status !== 'playing' && session.status !== 'completed') return false;
   if (typeof session.completionError !== 'boolean') return false;
+  if (session.playMode !== 'free' && session.playMode !== 'campaign' && session.playMode !== 'challenge') return false;
+  if (session.playMode === 'campaign' ? !Number.isInteger(session.campaignLevel) || Number(session.campaignLevel) < 1 : session.campaignLevel !== null) return false;
+  if (!Array.isArray(session.excludedPositionKeysUsed) || new Set(session.excludedPositionKeysUsed).size !== session.excludedPositionKeysUsed.length
+    || session.excludedPositionKeysUsed.some((key) => !validPositionKey(key, size))) return false;
   for (const given of session.puzzle.givenQueens) if (session.boardState.cells[cellIndex(size, given)] !== 'queen') return false;
   return session.status !== 'completed' || (session.completedAtMs !== null && validateCompletedBoard(session.boardState));
+}
+
+function validPositionKey(value: unknown, size: number): boolean {
+  if (typeof value !== 'string') return false;
+  const match = /^(\d+),(\d+)$/.exec(value); if (!match) return false;
+  const row = Number(match[1]); const column = Number(match[2]);
+  return row >= 0 && column >= 0 && row < size && column < size;
 }
 
 function validCells(value: readonly CellState[] | undefined, expectedLength: number): boolean {
