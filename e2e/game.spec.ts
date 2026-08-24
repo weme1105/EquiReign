@@ -89,3 +89,19 @@ test('a complete legal board reaches the completion screen', async ({ page }) =>
   await lastCell.click();
   await expect(page.getByTestId('completion-screen')).toBeVisible();
 });
+
+test('an unfinished game can be continued after leaving the board', async ({ page }) => {
+  await page.goto('/');
+  await page.getByTestId('difficulty-expert').click();
+  await page.getByTestId('size-9').click();
+  await page.getByTestId('start-game').click();
+  await expect(page.getByTestId('game-screen')).toHaveAttribute('aria-label', '遊戲已就緒');
+  const cell = page.getByTestId('cell-0-0');
+  await cell.click();
+  await expect(cell).toHaveAttribute('aria-label', /叉號/);
+  await page.goto('/');
+  await expect(page.getByTestId('continue-game')).toContainText('進階 · 9×9 · 1 步');
+  await page.getByTestId('continue-game').click();
+  await expect(page.getByTestId('game-screen')).toHaveAttribute('aria-label', '遊戲已就緒');
+  await expect(page.getByTestId('cell-0-0')).toHaveAttribute('aria-label', /叉號/);
+});
