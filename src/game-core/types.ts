@@ -67,8 +67,25 @@ export interface GeneratedPuzzle {
   readonly size: number;
   readonly regionMap: readonly number[];
   readonly solution: readonly Position[];
+  readonly solverMetrics: SolverMetrics;
 }
 
 export interface PuzzleGenerator {
   generate(size: number, seed?: number): GeneratedPuzzle;
+}
+
+export interface SolverMetrics {
+  /** Unique, non-memoized DFS states expanded, including terminal states. */
+  readonly nodesVisited: number;
+  /** Legal queen placements followed into a child DFS state. */
+  readonly branchesTried: number;
+  /** Expanded non-terminal states that cannot reach any solution. */
+  readonly backtracks: number;
+  /** Previously solved DFS states reused from memoization. */
+  readonly memoHits: number;
+}
+
+export interface SolutionAnalysis {
+  readonly solutionCount: number;
+  readonly metrics: SolverMetrics;
 }

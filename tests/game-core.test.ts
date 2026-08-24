@@ -2,11 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createBoard, withCell } from '../src/game-core/board.ts';
 import { DIFFICULTIES } from '../src/game-core/difficulty.ts';
+import { costTier, rankSolverCosts } from '../src/game-core/complexity.ts';
 import { RegionPuzzleGenerator } from '../src/game-core/generator.ts';
 import { validatePuzzle } from '../src/game-core/puzzle.ts';
 import { findRuleConflicts, validateCompletedBoard } from '../src/game-core/rules.ts';
 import { createGameSession, cycleCell, isGivenQueen, placeQueen, queenFeasibilityErrors, requestHint, restart, toPuzzleResult, toggleExcluded, undo } from '../src/game-core/session.ts';
-import { countSolutions, extractFirstSolution, findLogicalHint } from '../src/game-core/solver.ts';
+import { analyzeSolutions, countSolutions, extractFirstSolution, findLogicalHint } from '../src/game-core/solver.ts';
 import type { BoardSnapshot, Difficulty, PuzzleDefinition } from '../src/game-core/types.ts';
 import { BOARD_SIZES, DIFFICULTY_ORDER, getPuzzle } from '../src/puzzles/catalog.ts';
 import { decodeSession, encodeSession } from '../src/storage/session-codec.ts';
@@ -46,6 +47,29 @@ test('solution counter respects player X and forced queens', () => {
   const queen = solution[0]!;
   assert.equal(countSolutions(withCell(board, queen, 'excluded'), 1), 0);
   assert.equal(countSolutions(withCell(board, queen, 'queen'), 1), 1);
+});
+
+test('solution analysis reports deterministic DFS operation costs', () => {
+  const puzzle = getPuzzle('expert', 8); const board = createBoard(puzzle);
+  const first = analyzeSolutions(board, 2); const second = analyzeSolutions(board, 2);
+  assert.deepEqual(first, second);
+  assert.equal(first.solutionCount, 1);
+  assert.ok(first.metrics.nodesVisited > 0);
+  assert.ok(first.metrics.branchesTried > 0);
+  assert.ok(first.metrics.backtracks > 0);
+});
+
+test('same-size solver costs receive weighted percentile tiers', () => {
+  const ranked = rankSolverCosts([
+    { nodesVisited: 10, branchesTried: 10, backtracks: 1, memoHits: 0 },
+    { nodesVisited: 20, branchesTried: 20, backtracks: 2, memoHits: 0 },
+    { nodesVisited: 30, branchesTried: 30, backtracks: 3, memoHits: 0 },
+    { nodesVisited: 40, branchesTried: 40, backtracks: 4, memoHits: 0 },
+    { nodesVisited: 50, branchesTried: 50, backtracks: 5, memoHits: 0 },
+  ]);
+  assert.deepEqual(ranked.map((item) => item.score), [0, 25, 50, 75, 100]);
+  assert.deepEqual(ranked.map((item) => item.tier), ['beginner', 'intermediate', 'advanced', 'expert', 'king']);
+  assert.equal(costTier(85), 'king');
 });
 
 test('given queens are immutable and never enter history', () => {
@@ -143,6 +167,7 @@ test('deterministic generator fulfills the PuzzleGenerator contract', () => {
   assert.equal(new Set(generated.regionMap).size, 6);
   assert.equal(countSolutions(board, 2), 1);
   assert.equal(generated.solution.length, 6);
+  assert.deepEqual(generated.solverMetrics, analyzeSolutions(board, 2).metrics);
 });
 
 test('invalid region definitions are rejected', () => {
