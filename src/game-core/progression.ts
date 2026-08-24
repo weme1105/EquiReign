@@ -5,8 +5,8 @@ export type CampaignStage = Difficulty | 'infinite';
 export interface PlayerProgress {
   /** Highest campaign level completed. Level 1 is available when this is zero. */
   readonly completedCampaignLevel: number;
-  /** Next level to display for every independently tracked challenge combination. */
-  readonly challengeNextLevels: Readonly<Record<string, number>>;
+  /** Successful clears for every independently tracked challenge combination. */
+  readonly challengeSuccessCounts: Readonly<Record<string, number>>;
   /** Immutable first-success results. Replays never overwrite an existing key. */
   readonly firstClearResults: Readonly<Record<string, FirstClearResult>>;
 }
@@ -37,7 +37,7 @@ export const PUZZLE_POOL_TARGETS: Readonly<Record<CampaignStage, number>> = {
 };
 
 export function createPlayerProgress(): PlayerProgress {
-  return { completedCampaignLevel: 0, challengeNextLevels: {}, firstClearResults: {} };
+  return { completedCampaignLevel: 0, challengeSuccessCounts: {}, firstClearResults: {} };
 }
 
 export function campaignStage(level: number): CampaignStage {
@@ -79,16 +79,14 @@ export function challengeKey(selection: ChallengeSelection): string {
   return `${selection.difficulty}:${selection.size}`;
 }
 
-export function challengeNextLevel(progress: PlayerProgress, selection: ChallengeSelection): number {
-  return progress.challengeNextLevels[challengeKey(selection)] ?? 1;
+export function challengeSuccessCount(progress: PlayerProgress, selection: ChallengeSelection): number {
+  return progress.challengeSuccessCounts[challengeKey(selection)] ?? 0;
 }
 
-export function completeChallengeLevel(progress: PlayerProgress, selection: ChallengeSelection, level: number): PlayerProgress {
-  assertLevel(level);
+export function recordChallengeSuccess(progress: PlayerProgress, selection: ChallengeSelection): PlayerProgress {
   const key = challengeKey(selection);
-  const expected = challengeNextLevel(progress, selection);
-  if (level !== expected) return progress;
-  return { ...progress, challengeNextLevels: { ...progress.challengeNextLevels, [key]: expected + 1 } };
+  const count = challengeSuccessCount(progress, selection) + 1;
+  return { ...progress, challengeSuccessCounts: { ...progress.challengeSuccessCounts, [key]: count } };
 }
 
 export function recordFirstClear(progress: PlayerProgress, key: string, result: FirstClearResult): PlayerProgress {
