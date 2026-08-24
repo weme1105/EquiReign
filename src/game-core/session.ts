@@ -7,7 +7,7 @@ import type { CellState, GameSession, Position, PuzzleDefinition, PuzzleResult }
 
 const NEXT_STATE: Readonly<Record<CellState, CellState>> = { empty: 'excluded', excluded: 'queen', queen: 'empty' };
 
-export function createGameSession(puzzle: PuzzleDefinition, nowMs = Date.now()): GameSession {
+export function createGameSession(puzzle: PuzzleDefinition, nowMs = Date.now(), context: { readonly playMode?: GameSession['playMode']; readonly campaignLevel?: number | null } = {}): GameSession {
   validatePuzzle(puzzle);
   return {
     puzzle,
@@ -20,6 +20,9 @@ export function createGameSession(puzzle: PuzzleDefinition, nowMs = Date.now()):
     completedAtMs: null,
     status: 'ready',
     completionError: false,
+    excludedPositionKeysUsed: [],
+    playMode: context.playMode ?? 'free',
+    campaignLevel: context.campaignLevel ?? null,
   };
 }
 
@@ -41,10 +44,19 @@ function withPlayerBoard(session: GameSession, boardState: GameSession['boardSta
   };
 }
 
+function withExcludedUsage(session: GameSession, position: Position, nextState: CellState): GameSession {
+  if (nextState !== 'excluded') return session;
+  const key = positionKey(position);
+  return session.excludedPositionKeysUsed.includes(key)
+    ? session
+    : { ...session, excludedPositionKeysUsed: [...session.excludedPositionKeysUsed, key] };
+}
+
 export function cycleCell(session: GameSession, position: Position, nowMs = Date.now()): GameSession {
   if (session.status === 'completed' || !isInside(session.puzzle.size, position) || isGivenQueen(session, position)) return session;
   const index = cellIndex(session.puzzle.size, position);
-  return withPlayerBoard(session, withCell(session.boardState, position, NEXT_STATE[session.boardState.cells[index]!] ), nowMs);
+  const nextState = NEXT_STATE[session.boardState.cells[index]!]!;
+  return withPlayerBoard(withExcludedUsage(session, position, nextState), withCell(session.boardState, position, nextState), nowMs);
 }
 
 export function placeQueen(session: GameSession, position: Position, nowMs = Date.now()): GameSession {
@@ -57,7 +69,7 @@ export function toggleExcluded(session: GameSession, position: Position, nowMs =
   if (session.status === 'completed' || !isInside(session.puzzle.size, position) || isGivenQueen(session, position)) return session;
   const current = session.boardState.cells[cellIndex(session.puzzle.size, position)];
   const next = current === 'excluded' ? 'empty' : 'excluded';
-  return withPlayerBoard(session, withCell(session.boardState, position, next), nowMs);
+  return withPlayerBoard(withExcludedUsage(session, position, next), withCell(session.boardState, position, next), nowMs);
 }
 
 export function undo(session: GameSession): GameSession {
@@ -75,7 +87,7 @@ export function undo(session: GameSession): GameSession {
 }
 
 export function restart(session: GameSession, nowMs = Date.now()): GameSession {
-  return { ...createGameSession(session.puzzle, nowMs) };
+  return createGameSession(session.puzzle, nowMs, { playMode: session.playMode, campaignLevel: session.campaignLevel });
 }
 
 export function requestHint(session: GameSession): GameSession {
@@ -98,6 +110,8 @@ export function queenFeasibilityErrors(session: GameSession): ReadonlySet<string
 
 export function toPuzzleResult(session: GameSession, nowMs = Date.now()): PuzzleResult {
   const end = session.completedAtMs ?? nowMs;
+  const finalQueens = new Set(positionsWithState(session.boardState, 'queen').map(positionKey));
+  const effectiveExcludedCount = session.excludedPositionKeysUsed.filter((key) => !finalQueens.has(key)).length;
   return {
     puzzleId: session.puzzle.id,
     difficulty: session.difficulty,
@@ -105,5 +119,7 @@ export function toPuzzleResult(session: GameSession, nowMs = Date.now()): Puzzle
     elapsedTimeMs: Math.max(0, end - session.startedAtMs),
     hintsUsed: session.hintsUsed,
     completed: session.status === 'completed',
+    effectiveExcludedCount,
+    limitedXClear: session.status === 'completed' && effectiveExcludedCount <= session.puzzle.size,
   };
 }

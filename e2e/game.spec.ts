@@ -13,10 +13,7 @@ async function markQueen(cell: Locator): Promise<void> {
 }
 
 test('opens a new game, cycles marks, undoes and restarts', async ({ page }) => {
-  await page.goto('/');
-  await page.getByTestId('difficulty-advanced').click();
-  await page.getByTestId('size-12').click();
-  await page.getByTestId('start-game').click();
+  await openGame(page, 'advanced', 12);
   await expect(page.getByTestId('game-board')).toBeVisible();
   await expect(page.getByText('高級 · 12×12')).toBeVisible();
   await expect(page.locator('[data-testid^="cell-"]')).toHaveCount(144);
@@ -91,11 +88,7 @@ test('a complete legal board reaches the completion screen', async ({ page }) =>
 });
 
 test('an unfinished game can be continued after leaving the board', async ({ page }) => {
-  await page.goto('/');
-  await page.getByTestId('difficulty-expert').click();
-  await page.getByTestId('size-9').click();
-  await page.getByTestId('start-game').click();
-  await expect(page.getByTestId('game-screen')).toHaveAttribute('aria-label', '遊戲已就緒');
+  await openGame(page, 'expert', 9);
   const cell = page.getByTestId('cell-0-0');
   await cell.click();
   await expect(cell).toHaveAttribute('aria-label', /叉號/);
@@ -104,4 +97,11 @@ test('an unfinished game can be continued after leaving the board', async ({ pag
   await page.getByTestId('continue-game').click();
   await expect(page.getByTestId('game-screen')).toHaveAttribute('aria-label', '遊戲已就緒');
   await expect(page.getByTestId('cell-0-0')).toHaveAttribute('aria-label', /叉號/);
+});
+
+test('home exposes campaign and keeps challenge locked before level 200', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByTestId('campaign-mode')).toBeEnabled();
+  await expect(page.getByTestId('challenge-mode')).toBeDisabled();
+  await expect(page.getByText('完成初級第 200 關後解鎖')).toBeVisible();
 });

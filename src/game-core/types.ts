@@ -46,6 +46,10 @@ export interface GameSession {
   readonly completedAtMs: number | null;
   readonly status: GameStatus;
   readonly completionError: boolean;
+  /** Distinct positions ever marked X during this attempt; Undo does not remove entries. */
+  readonly excludedPositionKeysUsed: readonly string[];
+  readonly playMode: 'free' | 'campaign' | 'challenge';
+  readonly campaignLevel: number | null;
 }
 
 export interface PuzzleResult {
@@ -55,6 +59,8 @@ export interface PuzzleResult {
   readonly elapsedTimeMs: number;
   readonly hintsUsed: number;
   readonly completed: boolean;
+  readonly effectiveExcludedCount: number;
+  readonly limitedXClear: boolean;
 }
 
 export type ConflictReason = 'row' | 'column' | 'region' | 'adjacent';
