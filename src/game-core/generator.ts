@@ -1,4 +1,4 @@
-import { countSolutions, extractFirstSolution } from './solver.ts';
+import { analyzeSolutions, countSolutions, extractFirstSolution } from './solver.ts';
 import type { BoardSnapshot, CellState, GeneratedPuzzle, PuzzleGenerator } from './types.ts';
 
 export class RegionPuzzleGenerator implements PuzzleGenerator {
@@ -11,9 +11,10 @@ export class RegionPuzzleGenerator implements PuzzleGenerator {
       const regionMap = growUniqueRegions(size, columns, random);
       if (!regionMap) continue;
       const board: BoardSnapshot = { size, regionMap, cells: Array.from({ length: size * size }, () => 'empty') };
-      if (countSolutions(board, 2) !== 1) continue;
+      const analysis = analyzeSolutions(board, 2);
+      if (analysis.solutionCount !== 1) continue;
       const solution = extractFirstSolution(board);
-      if (solution) return { size, regionMap, solution };
+      if (solution) return { size, regionMap, solution, solverMetrics: analysis.metrics };
     }
     throw new Error(`Unable to generate a unique ${size}x${size} puzzle.`);
   }
