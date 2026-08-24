@@ -49,7 +49,7 @@ export function campaignStage(level: number): CampaignStage {
 export function campaignDifficulty(level: number): Difficulty {
   const stage = campaignStage(level);
   if (stage !== 'infinite') return stage;
-  return DIFFICULTY_ORDER[(level - CAMPAIGN_FINITE_LEVELS - 1) % DIFFICULTY_ORDER.length]!;
+  return 'king';
 }
 
 export function isChallengeUnlocked(progress: PlayerProgress): boolean {

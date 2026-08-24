@@ -4,6 +4,7 @@ import { createBoard, withCell } from '../src/game-core/board.ts';
 import { DIFFICULTIES } from '../src/game-core/difficulty.ts';
 import { costTier, rankSolverCosts } from '../src/game-core/complexity.ts';
 import { rankPuzzlePool, selectLevel, type PuzzlePoolCandidate } from '../src/game-core/levels.ts';
+import { createInfinitePresentation, isLostCell } from '../src/game-core/infinite.ts';
 import { campaignDifficulty, campaignStage, challengeNextLevel, completeCampaignLevel, completeChallengeLevel, createPlayerProgress, isChallengeUnlocked, PUZZLE_POOL_TARGETS, recordFirstClear, resolveChallengeSelection } from '../src/game-core/progression.ts';
 import { RegionPuzzleGenerator } from '../src/game-core/generator.ts';
 import { validatePuzzle } from '../src/game-core/puzzle.ts';
@@ -23,10 +24,21 @@ test('campaign advances every 200 levels and becomes infinite after level 1000',
   assert.equal(campaignStage(601), 'expert');
   assert.equal(campaignStage(801), 'king');
   assert.equal(campaignStage(1001), 'infinite');
-  assert.equal(campaignDifficulty(1001), 'beginner');
+  assert.equal(campaignDifficulty(1001), 'king');
   assert.equal(campaignDifficulty(1005), 'king');
-  assert.equal(campaignDifficulty(1006), 'beginner');
+  assert.equal(campaignDifficulty(1006), 'king');
   assert.deepEqual(PUZZLE_POOL_TARGETS, { beginner: 100, intermediate: 200, advanced: 300, expert: 400, king: 500, infinite: 1000 });
+});
+
+test('infinite lost cells remain presentation-only and may contain a correct crown', () => {
+  const puzzle = getPuzzle('king', 6);
+  const solution = extractFirstSolution(createBoard(puzzle))!;
+  const crown = solution[0]!;
+  const crownIndex = crown.row * puzzle.size + crown.column;
+  const randomValues = Array.from({ length: 36 }, (_, index) => index === crownIndex ? 0 : .5);
+  const presentation = createInfinitePresentation(6, 1, randomValues);
+  assert.equal(isLostCell(presentation, 6, crown), true);
+  assert.equal(countSolutions(createBoard(puzzle), 2), 1, 'presentation loss must not alter the solver board');
 });
 
 test('challenge unlocks after beginner campaign and tracks every difficulty-size pair independently', () => {
