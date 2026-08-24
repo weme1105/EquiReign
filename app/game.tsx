@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { DIFFICULTIES } from '../src/game-core/difficulty.ts';
 import { completeCampaignLevel, recordChallengeSuccess, recordFirstClear } from '../src/game-core/progression.ts';
-import { createGameSession, cycleCell, requestHint, restart, toPuzzleResult, toggleExcluded, undo } from '../src/game-core/session.ts';
+import { configureInfiniteSession, createGameSession, cycleCell, requestHint, restart, toPuzzleResult, toggleExcluded, undo } from '../src/game-core/session.ts';
 import type { BoardSize, Difficulty } from '../src/game-core/types.ts';
 import { GameBoard } from '../src/features/game/GameBoard.tsx';
 import { getPuzzle } from '../src/puzzles/catalog.ts';
@@ -24,13 +24,14 @@ export default function GameScreen() {
   const puzzle = useMemo(() => getPuzzle(difficulty, size), [difficulty, size]);
   const [isReady, setIsReady] = useState(false);
   const context = { playMode: requestedMode, campaignLevel: requestedMode === 'campaign' && Number.isInteger(requestedLevel) ? requestedLevel : null } as const;
-  const [session, setSession] = useState(() => createGameSession(puzzle, Date.now(), context)); const [now, setNow] = useState(Date.now());
+  const newSession = () => { const created = createGameSession(puzzle, Date.now(), context); return requestedMode === 'campaign' && requestedLevel > 1000 ? configureInfiniteSession(created) : created; };
+  const [session, setSession] = useState(newSession); const [now, setNow] = useState(Date.now());
   const recordedCompletion = useRef<string | null>(null);
   useEffect(() => {
     let active = true; setIsReady(false);
     void (async () => {
       const saved = resumeSaved ? await loadActiveSession() : null;
-      const next = saved?.puzzle.id === puzzle.id && saved.status !== 'completed' ? saved : createGameSession(puzzle, Date.now(), context);
+      const next = saved?.puzzle.id === puzzle.id && saved.status !== 'completed' ? saved : newSession();
       if (!active) return;
       setSession(next); setNow(Date.now()); setIsReady(true);
     })();

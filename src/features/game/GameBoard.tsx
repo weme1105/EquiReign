@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-na
 import { cellIndex, positionKey } from '../../game-core/board.ts';
 import { findRuleConflicts } from '../../game-core/rules.ts';
 import { isGivenQueen, queenFeasibilityErrors } from '../../game-core/session.ts';
+import { extractFirstSolution } from '../../game-core/solver.ts';
 import type { GameSession } from '../../game-core/types.ts';
 
 interface Props { readonly session: GameSession; readonly onPress: (row: number, column: number) => void; readonly onLongPress: (row: number, column: number) => void }
@@ -13,6 +14,7 @@ export function GameBoard({ session, onPress, onLongPress }: Props) {
   const cellSize = boardSize / session.puzzle.size;
   const conflicts = findRuleConflicts(session.boardState).positions;
   const feasibility = queenFeasibilityErrors(session);
+  const solutionCrowns = new Set((extractFirstSolution({ ...session.boardState, cells: session.boardState.cells.map(() => 'empty') }) ?? []).map(({ row, column }) => row * session.puzzle.size + column));
 
   return <View accessibilityLabel="game-board" style={[styles.board, { height: boardSize, width: boardSize }]} testID="game-board">
     {session.boardState.cells.map((state, index) => {
@@ -20,11 +22,14 @@ export function GameBoard({ session, onPress, onLongPress }: Props) {
       const key = positionKey(position); const given = isGivenQueen(session, position); const error = conflicts.has(key) || feasibility.has(key);
       const hinted = session.hintTarget?.row === row && session.hintTarget.column === column;
       const region = session.puzzle.regionMap[cellIndex(session.puzzle.size, position)]!;
+      const lost = session.lostCellIndexes.includes(index); const frozen = session.frozenCellIndexes.includes(index) && !session.revealedFrozenCellIndexes.includes(index);
+      const revealedCrown = session.revealedFrozenCellIndexes.includes(index) && solutionCrowns.has(index);
       return <Pressable key={key} accessibilityRole="button" accessibilityState={{ disabled: given }}
-        accessibilityLabel={`第 ${row + 1} 列第 ${column + 1} 行，${state === 'queen' ? '皇后' : state === 'excluded' ? '叉號' : '空白'}${given ? '，預置' : ''}${error ? '，錯誤' : ''}`}
-        disabled={given} onPress={() => onPress(row, column)} onLongPress={() => onLongPress(row, column)} delayLongPress={320}
-        testID={hinted ? 'hint-target' : `cell-${row}-${column}`} style={[styles.cell, { backgroundColor: REGION_COLORS[region % REGION_COLORS.length], height: cellSize, width: cellSize }, error && styles.error, hinted && styles.hinted]}>
-        {state === 'queen' && <Text style={[styles.queen, given && styles.given]} testID={`queen-${row}-${column}`}>♛</Text>}
+        accessibilityLabel={`第 ${row + 1} 列第 ${column + 1} 行，${lost ? '遺失' : frozen ? '冰封' : state === 'queen' || revealedCrown ? '皇后' : state === 'excluded' ? '叉號' : '空白'}${given ? '，預置' : ''}${error ? '，錯誤' : ''}`}
+        disabled={given || lost || frozen} onPress={() => onPress(row, column)} onLongPress={() => onLongPress(row, column)} delayLongPress={320}
+        testID={lost ? `lost-${row}-${column}` : frozen ? `frozen-${row}-${column}` : hinted ? 'hint-target' : `cell-${row}-${column}`} style={[styles.cell, { backgroundColor: REGION_COLORS[region % REGION_COLORS.length], height: cellSize, width: cellSize }, lost && styles.lost, frozen && styles.frozen, error && styles.error, hinted && styles.hinted]}>
+        {frozen && <Text style={styles.ice}>❄</Text>}
+        {(state === 'queen' || revealedCrown) && <Text style={[styles.queen, given && styles.given]} testID={`queen-${row}-${column}`}>♛</Text>}
         {state === 'excluded' && <Text style={styles.excluded}>×</Text>}
         {hinted && <View style={styles.hintDot} />}
       </Pressable>;
@@ -37,4 +42,5 @@ const styles = StyleSheet.create({
   error: { backgroundColor: '#d86470' }, hinted: { borderColor: '#fff29d', borderWidth: 4 }, queen: { color: '#17142a', fontSize: 29, lineHeight: 35 },
   given: { color: '#9b6a08' }, excluded: { color: '#514b67', fontSize: 23, fontWeight: '500' },
   hintDot: { backgroundColor: '#fff29d', borderRadius: 5, height: 9, position: 'absolute', right: 3, top: 3, width: 9 },
+  lost: { backgroundColor: '#17142a', borderColor: '#514a70', borderStyle: 'dashed', borderWidth: 1.5 }, frozen: { backgroundColor: '#b9dce8', borderColor: '#eefbff', borderWidth: 2 }, ice: { color: '#f5fdff', fontSize: 18 },
 });

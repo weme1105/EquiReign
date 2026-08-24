@@ -44,6 +44,9 @@ function isValidSession(value: unknown): value is GameSession {
   if (typeof session.completionError !== 'boolean') return false;
   if (session.playMode !== 'free' && session.playMode !== 'campaign' && session.playMode !== 'challenge') return false;
   if (session.playMode === 'campaign' ? !Number.isInteger(session.campaignLevel) || Number(session.campaignLevel) < 1 : session.campaignLevel !== null) return false;
+  const validIndexes = (value: readonly number[] | undefined) => Array.isArray(value) && new Set(value).size === value.length && value.every((index) => Number.isInteger(index) && index >= 0 && index < cellCount);
+  if (!validIndexes(session.lostCellIndexes) || !validIndexes(session.frozenCellIndexes) || !validIndexes(session.revealedFrozenCellIndexes)) return false;
+  if (session.lostCellIndexes.some((index) => session.frozenCellIndexes.includes(index)) || session.revealedFrozenCellIndexes.some((index) => !session.frozenCellIndexes.includes(index))) return false;
   if (!Array.isArray(session.excludedPositionKeysUsed) || new Set(session.excludedPositionKeysUsed).size !== session.excludedPositionKeysUsed.length
     || session.excludedPositionKeysUsed.some((key) => !validPositionKey(key, size))) return false;
   for (const given of session.puzzle.givenQueens) if (session.boardState.cells[cellIndex(size, given)] !== 'queen') return false;
