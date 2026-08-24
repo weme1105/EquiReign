@@ -5,7 +5,8 @@ import { DIFFICULTIES } from '../src/game-core/difficulty.ts';
 import { costTier, rankSolverCosts } from '../src/game-core/complexity.ts';
 import { rankPuzzlePool, selectLevel, type PuzzlePoolCandidate } from '../src/game-core/levels.ts';
 import { createInfinitePresentation, isLostCell, revealedLostCrowns } from '../src/game-core/infinite.ts';
-import { campaignBoardSize, campaignDifficulty, campaignStage, challengeNextLevel, completeCampaignLevel, completeChallengeLevel, createPlayerProgress, isChallengeUnlocked, PUZZLE_POOL_TARGETS, recordFirstClear, resolveChallengeSelection } from '../src/game-core/progression.ts';
+import { createFrozenPresentation, resolveFrozenCells } from '../src/game-core/frozen.ts';
+import { campaignBoardSize, campaignDifficulty, campaignStage, challengeSuccessCount, completeCampaignLevel, createPlayerProgress, isChallengeUnlocked, PUZZLE_POOL_TARGETS, recordChallengeSuccess, recordFirstClear, resolveChallengeSelection } from '../src/game-core/progression.ts';
 import { RegionPuzzleGenerator } from '../src/game-core/generator.ts';
 import { validatePuzzle } from '../src/game-core/puzzle.ts';
 import { findRuleConflicts, validateCompletedBoard } from '../src/game-core/rules.ts';
@@ -48,6 +49,23 @@ test('infinite lost cells remain presentation-only and may contain a correct cro
   assert.deepEqual(revealedLostCrowns(6, solution, visibleCrowns, presentation), [crown]);
 });
 
+test('frozen cells reveal by line logic, ignore other hidden cells and never auto-place X', () => {
+  const puzzle = getPuzzle('king', 6); const board = createBoard(puzzle);
+  const solution = extractFirstSolution(board)!; const crown = solution[0]!; const crownIndex = crown.row * 6 + crown.column;
+  const nonCrownIndex = crown.row * 6 + ((crown.column + 1) % 6);
+  const randomValues = Array.from({ length: 36 }, () => .9); randomValues[crownIndex] = 0; randomValues[nonCrownIndex] = .1;
+  let frozen = createFrozenPresentation(6, solution, new Set(), { frozenCellCount: 2, randomValues });
+  const cells = board.cells.slice();
+  for (let column = 0; column < 6; column += 1) {
+    const index = crown.row * 6 + column;
+    if (!frozen.frozenCellIndexes.has(index)) cells[index] = 'excluded';
+  }
+  frozen = resolveFrozenCells(6, solution, cells, frozen);
+  assert.equal(frozen.revealedCellIndexes.has(crownIndex), true);
+  assert.equal(frozen.revealedCellIndexes.has(nonCrownIndex), true, 'revealed crown should trigger chained non-crown thaw');
+  assert.equal(cells[nonCrownIndex], 'empty', 'thawing must not auto-mark X');
+});
+
 test('challenge unlocks after beginner campaign and tracks every difficulty-size pair independently', () => {
   let progress = createPlayerProgress();
   assert.equal(isChallengeUnlocked(progress), false);
@@ -55,9 +73,9 @@ test('challenge unlocks after beginner campaign and tracks every difficulty-size
   assert.equal(isChallengeUnlocked(progress), true);
   const expert8 = { difficulty: 'expert', size: 8 } as const;
   const expert9 = { difficulty: 'expert', size: 9 } as const;
-  progress = completeChallengeLevel(progress, expert8, 1);
-  assert.equal(challengeNextLevel(progress, expert8), 2);
-  assert.equal(challengeNextLevel(progress, expert9), 1);
+  progress = recordChallengeSuccess(progress, expert8);
+  assert.equal(challengeSuccessCount(progress, expert8), 1);
+  assert.equal(challengeSuccessCount(progress, expert9), 0);
   assert.deepEqual(decodeProgress(encodeProgress(progress)), progress);
 });
 

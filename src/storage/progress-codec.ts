@@ -23,8 +23,8 @@ function isPlayerProgress(value: unknown): value is PlayerProgress {
   if (!value || typeof value !== 'object') return false;
   const progress = value as PlayerProgress;
   if (!Number.isInteger(progress.completedCampaignLevel) || progress.completedCampaignLevel < 0) return false;
-  if (!progress.challengeNextLevels || typeof progress.challengeNextLevels !== 'object' || Array.isArray(progress.challengeNextLevels)) return false;
-  if (!Object.entries(progress.challengeNextLevels).every(([key, level]) => VALID_KEYS.has(key) && Number.isInteger(level) && level >= 1)) return false;
+  if (!progress.challengeSuccessCounts || typeof progress.challengeSuccessCounts !== 'object' || Array.isArray(progress.challengeSuccessCounts)) return false;
+  if (!Object.entries(progress.challengeSuccessCounts).every(([key, count]) => VALID_KEYS.has(key) && Number.isInteger(count) && count >= 0)) return false;
   if (!progress.firstClearResults || typeof progress.firstClearResults !== 'object' || Array.isArray(progress.firstClearResults)) return false;
   return Object.entries(progress.firstClearResults).every(([key, result]) => {
     if (!key || !result || typeof result !== 'object') return false;
