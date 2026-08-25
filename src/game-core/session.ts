@@ -34,9 +34,19 @@ export function createGameSession(puzzle: PuzzleDefinition, nowMs = Date.now(), 
 
 export function configureInfiniteSession(session: GameSession): GameSession {
   const solution = extractFirstSolution(session.boardState); if (!solution) throw new Error('Infinite mode requires a solvable puzzle.');
-  const lost = createInfinitePresentation(session.puzzle.size as 6 | 7 | 8 | 9 | 10 | 11 | 12, solution);
-  const frozen = createFrozenPresentation(session.puzzle.size as 6 | 7 | 8 | 9 | 10 | 11 | 12, solution, lost.lostCellIndexes);
+  const size = session.puzzle.size as 6 | 7 | 8 | 9 | 10 | 11 | 12; const random = seededRandom((session.campaignLevel ?? 1001) * 1009 + size);
+  const variant = Math.floor(random() * 3); const total = variant === 2 ? 2 + Math.floor(random() * (size - 1)) : 1 + Math.floor(random() * size);
+  const lostCount = variant === 1 ? 0 : variant === 0 ? total : 1 + Math.floor(random() * (total - 1));
+  const frozenCount = variant === 0 ? 0 : total - lostCount;
+  const values = () => Array.from({ length: size * size }, random);
+  const lost = lostCount ? createInfinitePresentation(size, solution, { lostCellCount: lostCount, randomValues: values() }) : { lostCellIndexes: new Set<number>() };
+  const frozen = frozenCount ? createFrozenPresentation(size, solution, lost.lostCellIndexes, { frozenCellCount: frozenCount, randomValues: values() }) : { frozenCellIndexes: new Set<number>(), revealedCellIndexes: new Set<number>() };
   return { ...session, lostCellIndexes: [...lost.lostCellIndexes], frozenCellIndexes: [...frozen.frozenCellIndexes], revealedFrozenCellIndexes: [] };
+}
+
+function seededRandom(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => { state += 0x6d2b79f5; let value = state; value = Math.imul(value ^ value >>> 15, value | 1); value ^= value + Math.imul(value ^ value >>> 7, value | 61); return ((value ^ value >>> 14) >>> 0) / 4_294_967_296; };
 }
 
 export function isGivenQueen(session: GameSession, position: Position): boolean {

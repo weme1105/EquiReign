@@ -6,14 +6,14 @@ import { costTier, rankSolverCosts } from '../src/game-core/complexity.ts';
 import { rankPuzzlePool, selectLevel, type PuzzlePoolCandidate } from '../src/game-core/levels.ts';
 import { createInfinitePresentation, isLostCell, revealedLostCrowns } from '../src/game-core/infinite.ts';
 import { createFrozenPresentation, resolveFrozenCells } from '../src/game-core/frozen.ts';
-import { campaignBoardSize, campaignDifficulty, campaignStage, challengeSuccessCount, completeCampaignLevel, createPlayerProgress, isChallengeUnlocked, PUZZLE_POOL_TARGETS, recordChallengeSuccess, recordFirstClear, resolveChallengeSelection } from '../src/game-core/progression.ts';
+import { campaignBoardSize, campaignDifficulty, campaignPuzzleOrdinal, campaignStage, challengeSuccessCount, completeCampaignLevel, createPlayerProgress, isChallengeUnlocked, PUZZLE_POOL_TARGETS, recordChallengeSuccess, recordFirstClear, resolveChallengeSelection } from '../src/game-core/progression.ts';
 import { RegionPuzzleGenerator } from '../src/game-core/generator.ts';
 import { validatePuzzle } from '../src/game-core/puzzle.ts';
 import { findRuleConflicts, validateCompletedBoard } from '../src/game-core/rules.ts';
-import { createGameSession, cycleCell, isGivenQueen, placeQueen, queenFeasibilityErrors, requestHint, restart, toPuzzleResult, toggleExcluded, undo } from '../src/game-core/session.ts';
+import { configureInfiniteSession, createGameSession, cycleCell, isGivenQueen, placeQueen, queenFeasibilityErrors, requestHint, restart, toPuzzleResult, toggleExcluded, undo } from '../src/game-core/session.ts';
 import { analyzeSolutions, countSolutions, extractFirstSolution, findLogicalHint } from '../src/game-core/solver.ts';
 import type { BoardSnapshot, Difficulty, PuzzleDefinition } from '../src/game-core/types.ts';
-import { BOARD_SIZES, DIFFICULTY_ORDER, getPuzzle } from '../src/puzzles/catalog.ts';
+import { BOARD_SIZES, DIFFICULTY_ORDER, getCampaignPuzzle, getPuzzle } from '../src/puzzles/catalog.ts';
 import { decodeSession, encodeSession } from '../src/storage/session-codec.ts';
 import { decodeProgress, encodeProgress } from '../src/storage/progress-codec.ts';
 
@@ -32,6 +32,8 @@ test('campaign advances every 200 levels and becomes infinite after level 1000',
   assert.equal(campaignBoardSize(1), 6);
   assert.equal(campaignBoardSize(200), 12);
   assert.equal(campaignBoardSize(201), campaignBoardSize(201));
+  assert.equal(campaignPuzzleOrdinal(777), campaignPuzzleOrdinal(777));
+  assert.equal(getCampaignPuzzle(777).id, getCampaignPuzzle(777).id);
 });
 
 test('infinite lost cells remain presentation-only and may contain a correct crown', () => {
@@ -117,6 +119,15 @@ test('infinite session completes after every visible crown is correct and preser
   const reset = restart(session, 300);
   assert.deepEqual(reset.lostCellIndexes, [hiddenIndex]);
   assert.equal(reset.status, 'ready');
+});
+
+test('infinite special variants are stable and never hide more than the crown count', () => {
+  for (let level = 1001; level <= 1050; level += 1) {
+    const puzzle = getCampaignPuzzle(level); const context = { playMode: 'campaign', campaignLevel: level } as const;
+    const first = configureInfiniteSession(createGameSession(puzzle, 100, context)); const second = configureInfiniteSession(createGameSession(puzzle, 200, context));
+    assert.deepEqual(first.lostCellIndexes, second.lostCellIndexes); assert.deepEqual(first.frozenCellIndexes, second.frozenCellIndexes);
+    assert.ok(first.lostCellIndexes.length + first.frozenCellIndexes.length <= puzzle.size);
+  }
 });
 
 test('difficulty and board size combine independently into valid unique puzzles', () => {

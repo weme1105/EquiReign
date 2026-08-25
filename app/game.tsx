@@ -6,7 +6,7 @@ import { completeCampaignLevel, recordChallengeSuccess, recordFirstClear } from 
 import { configureInfiniteSession, createGameSession, cycleCell, requestHint, restart, toPuzzleResult, toggleExcluded, undo } from '../src/game-core/session.ts';
 import type { BoardSize, Difficulty } from '../src/game-core/types.ts';
 import { GameBoard } from '../src/features/game/GameBoard.tsx';
-import { getPuzzle } from '../src/puzzles/catalog.ts';
+import { getCampaignPuzzle, getPuzzle } from '../src/puzzles/catalog.ts';
 import { clearActiveSession, loadActiveSession, saveActiveSession } from '../src/storage/active-session-storage';
 import { loadPlayerProgress, savePlayerProgress } from '../src/storage/player-progress-storage';
 
@@ -21,7 +21,7 @@ function formatTime(ms: number): string { const seconds = Math.floor(ms / 1000);
 export default function GameScreen() {
   const params = useLocalSearchParams<{ difficulty?: string; size?: string; resume?: string; mode?: string; level?: string }>(); const difficulty = parseDifficulty(params.difficulty); const size = parseSize(params.size); const resumeSaved = params.resume === '1';
   const requestedMode = params.mode === 'campaign' || params.mode === 'challenge' ? params.mode : 'free'; const requestedLevel = Number(params.level);
-  const puzzle = useMemo(() => getPuzzle(difficulty, size), [difficulty, size]);
+  const puzzle = useMemo(() => requestedMode === 'campaign' && Number.isInteger(requestedLevel) ? getCampaignPuzzle(requestedLevel) : getPuzzle(difficulty, size), [difficulty, requestedLevel, requestedMode, size]);
   const [isReady, setIsReady] = useState(false);
   const context = { playMode: requestedMode, campaignLevel: requestedMode === 'campaign' && Number.isInteger(requestedLevel) ? requestedLevel : null } as const;
   const newSession = () => { const created = createGameSession(puzzle, Date.now(), context); return requestedMode === 'campaign' && requestedLevel > 1000 ? configureInfiniteSession(created) : created; };
