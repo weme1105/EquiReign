@@ -190,22 +190,20 @@ test('same-size solver costs receive weighted percentile tiers', () => {
   assert.equal(costTier(85), 'king');
 });
 
-test('level selection fixes every tenth level and randomizes the others without immediate repeats', () => {
+test('every campaign level is fixed, deterministic and replayable', () => {
   const source = getPuzzle('expert', 8);
   const candidates: PuzzlePoolCandidate[] = [10, 20, 30, 40, 50, 60].map((cost, index) => ({
     id: `candidate-${index}`, size: 8, regionMap: source.regionMap, solution: extractFirstSolution(createBoard(source))!,
     solverMetrics: { nodesVisited: cost, branchesTried: cost, backtracks: cost, memoHits: 0 },
   }));
   const ranked = rankPuzzlePool(candidates);
-  const random = selectLevel(ranked, { level: 1, size: 8, difficulty: 'expert', randomValue: 0 });
-  const next = selectLevel(ranked, { level: 2, size: 8, difficulty: 'expert', randomValue: 0, previousPuzzleId: random.puzzle.id });
-  assert.notEqual(next.puzzle.id, random.puzzle.id);
-  assert.equal(random.replayAllowed, false);
-  const bossA = selectLevel(ranked, { level: 10, size: 8, difficulty: 'king' });
-  const bossB = selectLevel(ranked, { level: 10, size: 8, difficulty: 'king', randomValue: .99 });
-  assert.equal(bossA.puzzle.id, bossB.puzzle.id);
-  assert.equal(bossA.isFixed, true);
-  assert.equal(bossA.replayAllowed, true);
+  for (const level of [1, 2, 9, 10, 11, 99, 100]) {
+    const first = selectLevel(ranked, { level, size: 8, difficulty: 'king' });
+    const second = selectLevel(ranked, { level, size: 8, difficulty: 'king' });
+    assert.equal(first.puzzle.id, second.puzzle.id);
+    assert.equal(first.isFixed, true);
+    assert.equal(first.replayAllowed, true);
+  }
 });
 
 test('given queens are immutable and never enter history', () => {
