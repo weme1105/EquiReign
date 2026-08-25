@@ -1,0 +1,65 @@
+name: Fix fixed-level test
+
+on:
+  push:
+    branches: [feature/fixed-campaign-levels]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/fixed-campaign-levels
+      - name: Replace obsolete random-level test
+        shell: python
+        run: |
+          from pathlib import Path
+          path = Path('tests/game-core.test.ts')
+          text = path.read_text()
+          old = """test('level selection fixes every tenth level and randomizes the others without immediate repeats', () => {
+            const source = getPuzzle('expert', 8);
+            const candidates: PuzzlePoolCandidate[] = [10, 20, 30, 40, 50, 60].map((cost, index) => ({
+              id: `candidate-${index}`, size: 8, regionMap: source.regionMap, solution: extractFirstSolution(createBoard(source))!,
+              solverMetrics: { nodesVisited: cost, branchesTried: cost, backtracks: cost, memoHits: 0 },
+            }));
+            const ranked = rankPuzzlePool(candidates);
+            const random = selectLevel(ranked, { level: 1, size: 8, difficulty: 'expert', randomValue: 0 });
+            const next = selectLevel(ranked, { level: 2, size: 8, difficulty: 'expert', randomValue: 0, previousPuzzleId: random.puzzle.id });
+            assert.notEqual(next.puzzle.id, random.puzzle.id);
+            assert.equal(random.replayAllowed, false);
+            const bossA = selectLevel(ranked, { level: 10, size: 8, difficulty: 'king' });
+            const bossB = selectLevel(ranked, { level: 10, size: 8, difficulty: 'king', randomValue: .99 });
+            assert.equal(bossA.puzzle.id, bossB.puzzle.id);
+            assert.equal(bossA.isFixed, true);
+            assert.equal(bossA.replayAllowed, true);
+          });"""
+          new = """test('every campaign level is fixed, deterministic and replayable', () => {
+            const source = getPuzzle('expert', 8);
+            const candidates: PuzzlePoolCandidate[] = [10, 20, 30, 40, 50, 60].map((cost, index) => ({
+              id: `candidate-${index}`, size: 8, regionMap: source.regionMap, solution: extractFirstSolution(createBoard(source))!,
+              solverMetrics: { nodesVisited: cost, branchesTried: cost, backtracks: cost, memoHits: 0 },
+            }));
+            const ranked = rankPuzzlePool(candidates);
+            for (const level of [1, 2, 9, 10, 11, 99, 100]) {
+              const first = selectLevel(ranked, { level, size: 8, difficulty: 'king' });
+              const second = selectLevel(ranked, { level, size: 8, difficulty: 'king' });
+              assert.equal(first.puzzle.id, second.puzzle.id);
+              assert.equal(first.isFixed, true);
+              assert.equal(first.replayAllowed, true);
+            }
+          });"""
+          if old not in text:
+            raise SystemExit('obsolete level-selection test not found')
+          path.write_text(text.replace(old, new))
+      - name: Commit test update
+        run: |
+          if git diff --quiet -- tests/game-core.test.ts; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/game-core.test.ts
+          git commit -m "test: require every campaign level to be fixed"
+          git push origin HEAD:feature/fixed-campaign-levels
