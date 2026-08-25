@@ -7,6 +7,9 @@ public sealed class GameDbContext(DbContextOptions<GameDbContext> options) : DbC
 {
     public DbSet<Puzzle> Puzzles => Set<Puzzle>();
     public DbSet<CampaignLevel> CampaignLevels => Set<CampaignLevel>();
+    public DbSet<Player> Players => Set<Player>();
+    public DbSet<PlayerProgress> PlayerProgress => Set<PlayerProgress>();
+    public DbSet<PlayerCredential> PlayerCredentials => Set<PlayerCredential>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -26,6 +29,20 @@ public sealed class GameDbContext(DbContextOptions<GameDbContext> options) : DbC
             entity.HasKey(x => x.Level);
             entity.HasIndex(x => x.PuzzleId);
             entity.HasOne(x => x.Puzzle).WithMany().HasForeignKey(x => x.PuzzleId).OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<Player>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.AccountType).HasConversion<string>().HasMaxLength(20);
+            entity.HasOne(x => x.Progress).WithOne(x => x.Player).HasForeignKey<PlayerProgress>(x => x.PlayerId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<PlayerProgress>(entity => entity.HasKey(x => x.PlayerId));
+        modelBuilder.Entity<PlayerCredential>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.TokenHash).IsUnique();
+            entity.Property(x => x.TokenHash).HasColumnType("bytea");
+            entity.HasOne(x => x.Player).WithMany().HasForeignKey(x => x.PlayerId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

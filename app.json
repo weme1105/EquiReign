@@ -7,10 +7,10 @@
     "scheme": "equireign",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
-    "ios": { "supportsTablet": true, "bundleIdentifier": "com.weme1105.equireign" },
+    "ios": { "supportsTablet": true, "bundleIdentifier": "com.weme1105.equireign", "config": { "usesNonExemptEncryption": false } },
     "android": { "package": "com.weme1105.equireign", "adaptiveIcon": { "backgroundColor": "#17142a" } },
     "web": { "bundler": "metro", "output": "static" },
-    "plugins": ["expo-router"],
+    "plugins": ["expo-router", "expo-secure-store"],
     "experiments": { "typedRoutes": true }
   }
 }
