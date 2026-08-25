@@ -111,7 +111,7 @@ test('campaign describes every level as fixed and replayable', async ({ page }) 
   await expect(page.getByText('固定關卡 · 所有玩家相同 · 完成後可重玩')).toBeVisible();
 });
 
-test('tenth campaign level advances normally after completion', async ({ page }) => {
+test('tenth campaign level advances normally after completion and persistence', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('equireign.player-progress.v1', JSON.stringify({
       version: 1,
@@ -128,6 +128,39 @@ test('tenth campaign level advances normally after completion', async ({ page })
   await expect(lastCell).toHaveAttribute('aria-label', /叉號/);
   await lastCell.click();
   await expect(page.getByTestId('completion-screen')).toBeVisible();
-  await expect(page.getByTestId('next-level')).toBeVisible();
+  await expect(page.getByTestId('next-level')).toBeEnabled();
+  await expect(page.getByTestId('next-level')).toContainText('下一關');
   await expect(page.getByTestId('play-again')).toHaveCount(0);
+});
+
+test('campaign game resumes with its mode and level intact', async ({ page }) => {
+  await page.goto('/game?mode=campaign&level=1&difficulty=beginner&size=6');
+  await expect(page.getByTestId('game-screen')).toHaveAttribute('aria-label', '遊戲已就緒');
+  const cell = page.getByTestId('cell-0-0');
+  await cell.click();
+  await expect(cell).toHaveAttribute('aria-label', /叉號/);
+  await page.goto('/');
+  await expect(page.getByTestId('continue-game')).toContainText('初級 · 6×6 · 1 步');
+  await page.getByTestId('continue-game').click();
+  await expect(page.getByTestId('game-screen')).toHaveAttribute('aria-label', '遊戲已就緒');
+  await expect(page.getByTestId('cell-0-0')).toHaveAttribute('aria-label', /叉號/);
+});
+
+test('campaign lets players select and replay any unlocked level', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('equireign.player-progress.v1', JSON.stringify({
+      version: 1,
+      progress: { completedCampaignLevel: 3, challengeSuccessCounts: {}, firstClearResults: {} },
+    }));
+  });
+  await page.goto('/campaign');
+  await expect(page.getByText('第 4 關')).toBeVisible();
+  await expect(page.getByText('目前進度')).toBeVisible();
+  await page.getByTestId('campaign-previous-level').click();
+  await expect(page.getByText('第 3 關')).toBeVisible();
+  await expect(page.getByText('已完成 · 可重玩')).toBeVisible();
+  await expect(page.getByTestId('campaign-start')).toContainText('重玩此關');
+  await page.getByTestId('campaign-next-level').click();
+  await expect(page.getByText('第 4 關')).toBeVisible();
+  await expect(page.getByTestId('campaign-start')).toContainText('開始闖關');
 });
