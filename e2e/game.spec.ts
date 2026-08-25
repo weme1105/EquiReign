@@ -177,11 +177,11 @@ test('campaign is split into stage, page and level selection', async ({ page }) 
   });
   await page.goto('/campaign');
   await expect(page.getByTestId('campaign-stage-beginner')).toBeVisible();
-  await expect(page.getByText('21–40')).toBeVisible();
+  await expect(page.getByText('21–40', { exact: true })).toBeVisible();
   await expect(page.getByTestId('campaign-level-23')).toContainText('✓ 已完成');
   await expect(page.getByTestId('campaign-level-24')).toContainText('● 目前進度');
   await expect(page.getByTestId('campaign-level-25')).toBeDisabled();
   await page.getByTestId('campaign-previous-page').click();
-  await expect(page.getByText('1–20')).toBeVisible();
+  await expect(page.getByText('1–20', { exact: true })).toBeVisible();
   await expect(page.getByTestId('campaign-level-3')).toContainText('✓ 已完成');
 });
