@@ -12,6 +12,17 @@ async function markQueen(cell: Locator): Promise<void> {
   await expect(cell).toHaveAttribute('aria-label', /皇后/);
 }
 
+async function finishBeginnerSixBySix(page: Page): Promise<void> {
+  const remainingQueens = [[0,2],[2,3],[3,5],[5,4]];
+  for (const [row, column] of remainingQueens.slice(0, -1)) await markQueen(page.getByTestId(`cell-${row}-${column}`));
+  const [lastRow, lastColumn] = remainingQueens.at(-1)!;
+  const lastCell = page.getByTestId(`cell-${lastRow}-${lastColumn}`);
+  await lastCell.click();
+  await expect(lastCell).toHaveAttribute('aria-label', /叉號/);
+  await lastCell.click();
+  await expect(page.getByTestId('completion-screen')).toBeVisible();
+}
+
 test('opens a new game, cycles marks, undoes and restarts', async ({ page }) => {
   await openGame(page, 'advanced', 12);
   await expect(page.getByTestId('game-board')).toBeVisible();
@@ -120,17 +131,28 @@ test('tenth campaign level advances normally after completion and persistence', 
   });
   await page.goto('/game?mode=campaign&level=10&difficulty=beginner&size=6');
   await expect(page.getByTestId('game-screen')).toHaveAttribute('aria-label', '遊戲已就緒');
-  const remainingQueens = [[0,2],[2,3],[3,5],[5,4]];
-  for (const [row, column] of remainingQueens.slice(0, -1)) await markQueen(page.getByTestId(`cell-${row}-${column}`));
-  const [lastRow, lastColumn] = remainingQueens.at(-1)!;
-  const lastCell = page.getByTestId(`cell-${lastRow}-${lastColumn}`);
-  await lastCell.click();
-  await expect(lastCell).toHaveAttribute('aria-label', /叉號/);
-  await lastCell.click();
-  await expect(page.getByTestId('completion-screen')).toBeVisible();
+  await finishBeginnerSixBySix(page);
   await expect(page.getByTestId('next-level')).toBeEnabled();
   await expect(page.getByTestId('next-level')).toContainText('下一關');
-  await expect(page.getByTestId('play-again')).toHaveCount(0);
+  await expect(page.getByTestId('return-campaign')).toHaveCount(0);
+});
+
+test('replayed campaign level returns to campaign instead of implying progression', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('equireign.player-progress.v1', JSON.stringify({
+      version: 1,
+      progress: { completedCampaignLevel: 3, challengeSuccessCounts: {}, firstClearResults: {} },
+    }));
+  });
+  await page.goto('/game?mode=campaign&level=3&difficulty=beginner&size=6');
+  await expect(page.getByTestId('game-screen')).toHaveAttribute('aria-label', '遊戲已就緒');
+  await finishBeginnerSixBySix(page);
+  await expect(page.getByTestId('return-campaign')).toBeEnabled();
+  await expect(page.getByTestId('return-campaign')).toContainText('返回闖關');
+  await expect(page.getByTestId('next-level')).toHaveCount(0);
+  await page.getByTestId('return-campaign').click();
+  await expect(page.getByText('第 4 關')).toBeVisible();
+  await expect(page.getByText('目前進度')).toBeVisible();
 });
 
 test('campaign game resumes with its mode and level intact', async ({ page }) => {

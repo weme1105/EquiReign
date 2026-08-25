@@ -27,6 +27,7 @@ export default function GameScreen() {
   const newSession = () => { const created = createGameSession(puzzle, Date.now(), context); return requestedMode === 'campaign' && requestedLevel > 1000 ? configureInfiniteSession(created) : created; };
   const [session, setSession] = useState(newSession); const [now, setNow] = useState(Date.now());
   const recordedCompletion = useRef<string | null>(null);
+  const replayedCompletion = useRef<string | null>(null);
   const [persistedCompletionKey, setPersistedCompletionKey] = useState<string | null>(null);
   useEffect(() => {
     let active = true; setIsReady(false);
@@ -50,13 +51,17 @@ export default function GameScreen() {
     let active = true;
     void (async () => {
       const current = await loadPlayerProgress();
+      const wasCampaignReplay = session.playMode === 'campaign' && !!session.campaignLevel && session.campaignLevel <= current.completedCampaignLevel;
       let next = current;
       if (session.playMode === 'campaign' && session.campaignLevel) next = completeCampaignLevel(next, session.campaignLevel);
       if (session.playMode === 'challenge') next = recordChallengeSuccess(next, { difficulty: session.difficulty, size: session.puzzle.size as BoardSize });
       const recordKey = session.playMode === 'campaign' ? `campaign:${session.campaignLevel}` : `${session.playMode}:${session.puzzle.id}`;
       next = recordFirstClear(next, recordKey, { elapsedTimeMs: result.elapsedTimeMs, hintsUsed: result.hintsUsed, completedAtMs: session.completedAtMs! });
       await savePlayerProgress(next);
-      if (active && recordedCompletion.current === completionKey) setPersistedCompletionKey(completionKey);
+      if (active && recordedCompletion.current === completionKey) {
+        replayedCompletion.current = wasCampaignReplay ? completionKey : null;
+        setPersistedCompletionKey(completionKey);
+      }
     })();
     return () => { active = false; };
   }, [completionKey, result.elapsedTimeMs, result.hintsUsed, session]);
@@ -65,11 +70,12 @@ export default function GameScreen() {
 
   if (session.status === 'completed') {
     const completionPersisted = persistedCompletionKey === completionKey;
+    const campaignWasReplay = replayedCompletion.current === completionKey;
     return <SafeAreaView accessibilityLabel="遊戲已就緒" style={styles.screen} testID="game-screen"><View style={styles.completed} testID="completion-screen">
       <Text style={styles.crown}>♛</Text><Text style={styles.completedTitle}>王冠歸位</Text><Text style={styles.completedMeta}>{formatTime(result.elapsedTimeMs)} · {session.history.length} 步 · 提示 {result.hintsUsed}</Text>
       {result.limitedXClear && <Text style={styles.badge}>無 X 挑戰達成 · 有效 X {result.effectiveExcludedCount}/{session.puzzle.size}</Text>}
       {session.playMode === 'campaign' && session.campaignLevel
-        ? <Pressable accessibilityRole="button" disabled={!completionPersisted} onPress={() => router.replace('/campaign')} style={[styles.primary, !completionPersisted && styles.disabled]} testID="next-level"><Text style={styles.primaryText}>{completionPersisted ? '下一關' : '儲存中…'}</Text></Pressable>
+        ? <Pressable accessibilityRole="button" disabled={!completionPersisted} onPress={() => router.replace('/campaign')} style={[styles.primary, !completionPersisted && styles.disabled]} testID={campaignWasReplay ? 'return-campaign' : 'next-level'}><Text style={styles.primaryText}>{completionPersisted ? (campaignWasReplay ? '返回闖關' : '下一關') : '儲存中…'}</Text></Pressable>
         : <Pressable accessibilityRole="button" disabled={!completionPersisted} onPress={() => setSession(restart(session))} style={[styles.primary, !completionPersisted && styles.disabled]} testID="play-again"><Text style={styles.primaryText}>{completionPersisted ? '再玩一次' : '儲存中…'}</Text></Pressable>}
       <Pressable accessibilityRole="button" onPress={() => router.replace('/')} style={styles.secondary}><Text style={styles.secondaryText}>選擇其他選項</Text></Pressable>
     </View></SafeAreaView>;
