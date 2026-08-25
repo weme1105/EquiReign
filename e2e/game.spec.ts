@@ -151,8 +151,8 @@ test('replayed campaign level returns to campaign instead of implying progressio
   await expect(page.getByTestId('return-campaign')).toContainText('返回闖關');
   await expect(page.getByTestId('next-level')).toHaveCount(0);
   await page.getByTestId('return-campaign').click();
-  await expect(page.getByText('第 4 關')).toBeVisible();
-  await expect(page.getByText('目前進度')).toBeVisible();
+  await expect(page.getByTestId('campaign-level-4')).toContainText('● 目前進度');
+  await expect(page.getByTestId('campaign-current-level')).toContainText('第 4 關');
 });
 
 test('campaign game resumes with its mode and level intact', async ({ page }) => {
@@ -168,21 +168,20 @@ test('campaign game resumes with its mode and level intact', async ({ page }) =>
   await expect(page.getByTestId('cell-0-0')).toHaveAttribute('aria-label', /叉號/);
 });
 
-test('campaign lets players select and replay any unlocked level', async ({ page }) => {
+test('campaign is split into stage, page and level selection', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('equireign.player-progress.v1', JSON.stringify({
       version: 1,
-      progress: { completedCampaignLevel: 3, challengeSuccessCounts: {}, firstClearResults: {} },
+      progress: { completedCampaignLevel: 23, challengeSuccessCounts: {}, firstClearResults: {} },
     }));
   });
   await page.goto('/campaign');
-  await expect(page.getByText('第 4 關')).toBeVisible();
-  await expect(page.getByText('目前進度')).toBeVisible();
-  await page.getByTestId('campaign-previous-level').click();
-  await expect(page.getByText('第 3 關')).toBeVisible();
-  await expect(page.getByText('已完成 · 可重玩')).toBeVisible();
-  await expect(page.getByTestId('campaign-start')).toContainText('重玩此關');
-  await page.getByTestId('campaign-next-level').click();
-  await expect(page.getByText('第 4 關')).toBeVisible();
-  await expect(page.getByTestId('campaign-start')).toContainText('開始闖關');
+  await expect(page.getByTestId('campaign-stage-beginner')).toBeVisible();
+  await expect(page.getByText('21–40')).toBeVisible();
+  await expect(page.getByTestId('campaign-level-23')).toContainText('✓ 已完成');
+  await expect(page.getByTestId('campaign-level-24')).toContainText('● 目前進度');
+  await expect(page.getByTestId('campaign-level-25')).toBeDisabled();
+  await page.getByTestId('campaign-previous-page').click();
+  await expect(page.getByText('1–20')).toBeVisible();
+  await expect(page.getByTestId('campaign-level-3')).toContainText('✓ 已完成');
 });
