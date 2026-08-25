@@ -13,7 +13,7 @@ export default function CampaignScreen() {
     <Pressable onPress={() => router.back()}><Text style={styles.back}>‹ 返回</Text></Pressable>
     <Text style={styles.kicker}>CAMPAIGN</Text><Text style={styles.title}>第 {level} 關</Text>
     <Text style={[styles.stage, { color: DIFFICULTIES[difficulty].accent }]}>{stage === 'infinite' ? '無限' : DIFFICULTIES[difficulty].label} · {size}×{size}</Text>
-    <Text style={styles.description}>{level % 10 === 0 ? '固定關卡 · 完成後可重玩' : '隨機關卡 · 完成後前往下一關'}</Text>
+    <Text style={styles.description}>固定關卡 · 所有玩家相同 · 完成後可重玩</Text>
     <Pressable onPress={() => router.push({ pathname: '/game', params: { mode: 'campaign', level: String(level), difficulty, size: String(size) } })} style={styles.start} testID="campaign-start"><Text style={styles.startText}>開始闖關</Text></Pressable>
   </View></SafeAreaView>;
 }
