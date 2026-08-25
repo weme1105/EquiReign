@@ -27,6 +27,7 @@ export default function GameScreen() {
   const newSession = () => { const created = createGameSession(puzzle, Date.now(), context); return requestedMode === 'campaign' && requestedLevel > 1000 ? configureInfiniteSession(created) : created; };
   const [session, setSession] = useState(newSession); const [now, setNow] = useState(Date.now());
   const recordedCompletion = useRef<string | null>(null);
+  const [persistedCompletionKey, setPersistedCompletionKey] = useState<string | null>(null);
   useEffect(() => {
     let active = true; setIsReady(false);
     void (async () => {
@@ -40,30 +41,39 @@ export default function GameScreen() {
   useEffect(() => { if (!isReady) return; if (session.status === 'completed') void clearActiveSession(); else void saveActiveSession(session); }, [isReady, session]);
   useEffect(() => { if (session.status === 'completed') return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [session.status]);
   const policy = DIFFICULTIES[difficulty]; const result = toPuzzleResult(session, now); const hintsLeft = policy.hintLimit - session.hintsUsed;
+  const completionKey = session.status === 'completed' ? `${session.playMode}:${session.campaignLevel ?? session.puzzle.id}:${session.completedAtMs}` : null;
   useEffect(() => {
-    if (session.status !== 'completed') return;
-    const completionKey = `${session.playMode}:${session.campaignLevel ?? session.puzzle.id}:${session.completedAtMs}`;
-    if (recordedCompletion.current === completionKey) return; recordedCompletion.current = completionKey;
-    void loadPlayerProgress().then((current) => {
+    if (session.status !== 'completed' || !completionKey) return;
+    if (recordedCompletion.current === completionKey) return;
+    recordedCompletion.current = completionKey;
+    setPersistedCompletionKey(null);
+    let active = true;
+    void (async () => {
+      const current = await loadPlayerProgress();
       let next = current;
       if (session.playMode === 'campaign' && session.campaignLevel) next = completeCampaignLevel(next, session.campaignLevel);
       if (session.playMode === 'challenge') next = recordChallengeSuccess(next, { difficulty: session.difficulty, size: session.puzzle.size as BoardSize });
       const recordKey = session.playMode === 'campaign' ? `campaign:${session.campaignLevel}` : `${session.playMode}:${session.puzzle.id}`;
       next = recordFirstClear(next, recordKey, { elapsedTimeMs: result.elapsedTimeMs, hintsUsed: result.hintsUsed, completedAtMs: session.completedAtMs! });
-      return savePlayerProgress(next);
-    });
-  }, [result.elapsedTimeMs, result.hintsUsed, session]);
+      await savePlayerProgress(next);
+      if (active && recordedCompletion.current === completionKey) setPersistedCompletionKey(completionKey);
+    })();
+    return () => { active = false; };
+  }, [completionKey, result.elapsedTimeMs, result.hintsUsed, session]);
 
   if (!isReady) return <SafeAreaView accessibilityLabel="遊戲載入中" style={styles.screen} testID="game-screen"><View style={styles.loading}><Text style={styles.loadingText}>讀取棋局…</Text></View></SafeAreaView>;
 
-  if (session.status === 'completed') return <SafeAreaView accessibilityLabel="遊戲已就緒" style={styles.screen} testID="game-screen"><View style={styles.completed} testID="completion-screen">
-    <Text style={styles.crown}>♛</Text><Text style={styles.completedTitle}>王冠歸位</Text><Text style={styles.completedMeta}>{formatTime(result.elapsedTimeMs)} · {session.history.length} 步 · 提示 {result.hintsUsed}</Text>
-    {result.limitedXClear && <Text style={styles.badge}>無 X 挑戰達成 · 有效 X {result.effectiveExcludedCount}/{session.puzzle.size}</Text>}
-    {session.playMode === 'campaign' && session.campaignLevel
-      ? <Pressable accessibilityRole="button" onPress={() => router.replace('/campaign')} style={styles.primary} testID="next-level"><Text style={styles.primaryText}>下一關</Text></Pressable>
-      : <Pressable accessibilityRole="button" onPress={() => setSession(restart(session))} style={styles.primary} testID="play-again"><Text style={styles.primaryText}>再玩一次</Text></Pressable>}
-    <Pressable accessibilityRole="button" onPress={() => router.replace('/')} style={styles.secondary}><Text style={styles.secondaryText}>選擇其他選項</Text></Pressable>
-  </View></SafeAreaView>;
+  if (session.status === 'completed') {
+    const completionPersisted = persistedCompletionKey === completionKey;
+    return <SafeAreaView accessibilityLabel="遊戲已就緒" style={styles.screen} testID="game-screen"><View style={styles.completed} testID="completion-screen">
+      <Text style={styles.crown}>♛</Text><Text style={styles.completedTitle}>王冠歸位</Text><Text style={styles.completedMeta}>{formatTime(result.elapsedTimeMs)} · {session.history.length} 步 · 提示 {result.hintsUsed}</Text>
+      {result.limitedXClear && <Text style={styles.badge}>無 X 挑戰達成 · 有效 X {result.effectiveExcludedCount}/{session.puzzle.size}</Text>}
+      {session.playMode === 'campaign' && session.campaignLevel
+        ? <Pressable accessibilityRole="button" disabled={!completionPersisted} onPress={() => router.replace('/campaign')} style={[styles.primary, !completionPersisted && styles.disabled]} testID="next-level"><Text style={styles.primaryText}>{completionPersisted ? '下一關' : '儲存中…'}</Text></Pressable>
+        : <Pressable accessibilityRole="button" disabled={!completionPersisted} onPress={() => setSession(restart(session))} style={[styles.primary, !completionPersisted && styles.disabled]} testID="play-again"><Text style={styles.primaryText}>{completionPersisted ? '再玩一次' : '儲存中…'}</Text></Pressable>}
+      <Pressable accessibilityRole="button" onPress={() => router.replace('/')} style={styles.secondary}><Text style={styles.secondaryText}>選擇其他選項</Text></Pressable>
+    </View></SafeAreaView>;
+  }
 
   return <SafeAreaView accessibilityLabel={isReady ? '遊戲已就緒' : '遊戲載入中'} style={styles.screen} testID="game-screen"><View style={styles.header}>
     <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.back}>‹ 選項</Text></Pressable><View style={styles.headerCenter}><Text style={[styles.level, { color: policy.accent }]}>{policy.label} · {size}×{size}</Text><Text style={styles.timer} testID="timer">{formatTime(result.elapsedTimeMs)}</Text></View>
