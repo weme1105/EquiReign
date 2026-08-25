@@ -121,7 +121,12 @@ test('tenth campaign level advances normally after completion', async ({ page })
   await page.goto('/game?mode=campaign&level=10&difficulty=beginner&size=6');
   await expect(page.getByTestId('game-screen')).toHaveAttribute('aria-label', '遊戲已就緒');
   const remainingQueens = [[0,2],[2,3],[3,5],[5,4]];
-  for (const [row, column] of remainingQueens) await markQueen(page.getByTestId(`cell-${row}-${column}`));
+  for (const [row, column] of remainingQueens.slice(0, -1)) await markQueen(page.getByTestId(`cell-${row}-${column}`));
+  const [lastRow, lastColumn] = remainingQueens.at(-1)!;
+  const lastCell = page.getByTestId(`cell-${lastRow}-${lastColumn}`);
+  await lastCell.click();
+  await expect(lastCell).toHaveAttribute('aria-label', /叉號/);
+  await lastCell.click();
   await expect(page.getByTestId('completion-screen')).toBeVisible();
   await expect(page.getByTestId('next-level')).toBeVisible();
   await expect(page.getByTestId('play-again')).toHaveCount(0);
