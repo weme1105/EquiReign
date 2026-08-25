@@ -105,3 +105,24 @@ test('home exposes campaign and keeps challenge locked before level 200', async 
   await expect(page.getByTestId('challenge-mode')).toBeDisabled();
   await expect(page.getByText('完成初級第 200 關後解鎖')).toBeVisible();
 });
+
+test('campaign describes every level as fixed and replayable', async ({ page }) => {
+  await page.goto('/campaign');
+  await expect(page.getByText('固定關卡 · 所有玩家相同 · 完成後可重玩')).toBeVisible();
+});
+
+test('tenth campaign level advances normally after completion', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('equireign.player-progress.v1', JSON.stringify({
+      version: 1,
+      progress: { completedCampaignLevel: 9, challengeSuccessCounts: {}, firstClearResults: {} },
+    }));
+  });
+  await page.goto('/game?mode=campaign&level=10&difficulty=beginner&size=6');
+  await expect(page.getByTestId('game-screen')).toHaveAttribute('aria-label', '遊戲已就緒');
+  const remainingQueens = [[0,2],[2,3],[3,5],[5,4]];
+  for (const [row, column] of remainingQueens) await markQueen(page.getByTestId(`cell-${row}-${column}`));
+  await expect(page.getByTestId('completion-screen')).toBeVisible();
+  await expect(page.getByTestId('next-level')).toBeVisible();
+  await expect(page.getByTestId('play-again')).toHaveCount(0);
+});
