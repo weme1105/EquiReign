@@ -63,6 +63,14 @@ export function campaignBoardSize(level: number): BoardSize {
   return BOARD_SIZE_ORDER[mixed % BOARD_SIZE_ORDER.length]!;
 }
 
+/** Stable one-based pool slot: the same campaign level maps to the same puzzle for every player. */
+export function campaignPuzzleOrdinal(level: number): number {
+  assertLevel(level);
+  const target = PUZZLE_POOL_TARGETS[campaignStage(level)];
+  const mixed = Math.imul(level ^ 0x7f4a7c15, 0x9e3779b1) >>> 0;
+  return mixed % target + 1;
+}
+
 export function isChallengeUnlocked(progress: PlayerProgress): boolean {
   return progress.completedCampaignLevel >= CHALLENGE_UNLOCK_LEVEL;
 }

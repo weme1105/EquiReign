@@ -1,4 +1,5 @@
 import type { BoardSize, Difficulty, Position, PuzzleDefinition } from '../game-core/types.ts';
+import { campaignBoardSize, campaignDifficulty, campaignPuzzleOrdinal } from '../game-core/progression.ts';
 
 interface CatalogSource { readonly size: number; readonly regionMap: readonly number[]; readonly solution: readonly Position[] }
 
@@ -55,6 +56,12 @@ export function getPuzzle(difficulty: Difficulty, size: BoardSize = 8): PuzzleDe
     regionMap: source.regionMap,
     givenQueens: givenIndexes(difficulty, size).map((index) => source.solution[index]!),
   };
+}
+
+/** Temporary local catalog adapter; the stable slot will map directly to a database PuzzleId later. */
+export function getCampaignPuzzle(level: number): PuzzleDefinition {
+  const difficulty = campaignDifficulty(level); const size = campaignBoardSize(level); const ordinal = campaignPuzzleOrdinal(level);
+  return { ...getPuzzle(difficulty, size), id: `campaign-${level}-${size}x${size}-${difficulty}-${String(ordinal).padStart(4, '0')}` };
 }
 
 export const DIFFICULTY_ORDER: readonly Difficulty[] = ['beginner', 'intermediate', 'advanced', 'expert', 'king'];
