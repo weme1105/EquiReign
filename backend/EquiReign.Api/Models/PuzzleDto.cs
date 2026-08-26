@@ -9,5 +9,4 @@ public sealed record PuzzleDto(string PuzzleId, short Size, string Difficulty, i
 }
 
 public sealed record CampaignPuzzleDto(int Level, string PuzzleId, short Size, string Difficulty, int[] RegionMap, int[] GivenQueenCellIndexes, int Version);
-
-public sealed record CompleteCampaignPuzzleRequest(string PuzzleId, int PuzzleVersion, int[] QueenCellIndexes);
+public sealed record CampaignPuzzleBatchDto(int StartLevel, int EndLevel, IReadOnlyList<CampaignPuzzleDto> Puzzles);
