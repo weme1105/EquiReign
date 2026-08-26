@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { DIFFICULTIES } from '../src/game-core/difficulty.ts';
 import { CAMPAIGN_FINITE_LEVELS, CAMPAIGN_LEVELS_PER_STAGE, DIFFICULTY_ORDER, campaignBoardSize, campaignDifficulty, campaignStage, createPlayerProgress, type CampaignStage, type PlayerProgress } from '../src/game-core/progression.ts';
+import { prefetchNextCampaignBatch } from '../src/puzzles/campaign-puzzle-source.ts';
 import { loadPlayerProgress } from '../src/storage/player-progress-storage';
 
 const LEVELS_PER_PAGE = 20;
@@ -33,6 +34,7 @@ export default function CampaignScreen() {
       setProgress(value);
       setSelectedStage(currentStage);
       setPage(Math.floor(offset / LEVELS_PER_PAGE));
+      void prefetchNextCampaignBatch(currentLevel);
     });
     return () => { active = false; };
   }, []));
