@@ -33,6 +33,8 @@ app.MapGet("/api/campaign/batches/{startLevel:int}", async (int startLevel, Game
         .OrderBy(x => x.Level)
         .Select(x => new CampaignPuzzleDto(x.Level, x.Puzzle.PublicId, x.Puzzle.BoardSize, x.Puzzle.Difficulty, x.Puzzle.RegionMap, x.Puzzle.GivenQueenCellIndexes, x.Puzzle.Version))
         .ToListAsync(ct);
+    var expectedCount = endLevel - startLevel + 1;
+    if (puzzles.Count != expectedCount) return Results.Conflict(new { error = "campaign_batch_not_fully_published", startLevel, endLevel, expectedCount, actualCount = puzzles.Count });
     return Results.Ok(new CampaignPuzzleBatchDto(startLevel, endLevel, puzzles));
 });
 
