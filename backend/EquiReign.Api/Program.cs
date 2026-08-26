@@ -3,6 +3,8 @@ using EquiReign.Api.Data;
 using EquiReign.Api.Models;
 using Microsoft.EntityFrameworkCore;
 
+const int CampaignFiniteLevels = 1_000;
+
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddOpenApi();
 builder.Services.AddDbContext<GameDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("GameDatabase")));
@@ -24,8 +26,8 @@ app.MapPost("/api/auth/anonymous", async (GameDbContext db, CancellationToken ct
 
 app.MapGet("/api/campaign/batches/{startLevel:int}", async (int startLevel, GameDbContext db, CancellationToken ct) =>
 {
-    if (startLevel < 1 || startLevel % 100 != 0) return Results.BadRequest(new { error = "batch_start_must_be_positive_multiple_of_100" });
-    var endLevel = startLevel + 99;
+    if (startLevel < 100 || startLevel > CampaignFiniteLevels || startLevel % 100 != 0) return Results.BadRequest(new { error = "invalid_campaign_batch_start" });
+    var endLevel = Math.Min(startLevel + 99, CampaignFiniteLevels);
     var puzzles = await db.CampaignLevels.AsNoTracking()
         .Where(x => x.Level >= startLevel && x.Level <= endLevel && x.Puzzle.Status == PuzzleStatus.Published)
         .OrderBy(x => x.Level)
