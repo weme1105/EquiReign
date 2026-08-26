@@ -10,6 +10,7 @@ public sealed class Puzzle
     public required string Difficulty { get; init; }
     public int PoolOrdinal { get; init; }
     public required int[] RegionMap { get; init; }
+    public int[] GivenQueenCellIndexes { get; init; } = [];
     public required short[] SolutionColumns { get; init; }
     public long NodesVisited { get; init; }
     public long BranchesTried { get; init; }
