@@ -1,4 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { createBoard, cellIndex } from '../src/game-core/board.ts';
+import { extractFirstSolution } from '../src/game-core/solver.ts';
+import { getBundledCampaignPuzzle } from '../src/puzzles/bundled-campaign.ts';
 
 async function openGame(page: Page, difficulty: string, size = 8): Promise<void> {
   await page.goto(`/game?difficulty=${difficulty}&size=${size}`);
@@ -12,11 +15,17 @@ async function markQueen(cell: Locator): Promise<void> {
   await expect(cell).toHaveAttribute('aria-label', /皇后/);
 }
 
-async function finishBeginnerSixBySix(page: Page): Promise<void> {
-  const remainingQueens = [[0,2],[2,3],[3,5],[5,4]];
-  for (const [row, column] of remainingQueens.slice(0, -1)) await markQueen(page.getByTestId(`cell-${row}-${column}`));
-  const [lastRow, lastColumn] = remainingQueens.at(-1)!;
-  const lastCell = page.getByTestId(`cell-${lastRow}-${lastColumn}`);
+async function finishBundledCampaign(page: Page, level: number): Promise<void> {
+  const puzzle = getBundledCampaignPuzzle(level);
+  if (!puzzle) throw new Error(`Bundled campaign level ${level} is missing.`);
+  const solution = extractFirstSolution(createBoard(puzzle));
+  if (!solution) throw new Error(`Bundled campaign level ${level} is unsolvable.`);
+  const givenIndexes = new Set(puzzle.givenQueens.map((position) => cellIndex(puzzle.size, position)));
+  const remainingQueens = solution.filter((position) => !givenIndexes.has(cellIndex(puzzle.size, position)));
+  for (const { row, column } of remainingQueens.slice(0, -1)) await markQueen(page.getByTestId(`cell-${row}-${column}`));
+  const last = remainingQueens.at(-1);
+  if (!last) throw new Error(`Bundled campaign level ${level} has no player queens to place.`);
+  const lastCell = page.getByTestId(`cell-${last.row}-${last.column}`);
   await lastCell.click();
   await expect(lastCell).toHaveAttribute('aria-label', /叉號/);
   await lastCell.click();
@@ -131,7 +140,7 @@ test('tenth campaign level advances normally after completion and persistence', 
   });
   await page.goto('/game?mode=campaign&level=10&difficulty=beginner&size=6');
   await expect(page.getByTestId('game-screen')).toHaveAttribute('aria-label', '遊戲已就緒');
-  await finishBeginnerSixBySix(page);
+  await finishBundledCampaign(page, 10);
   await expect(page.getByTestId('next-level')).toBeEnabled();
   await expect(page.getByTestId('next-level')).toContainText('下一關');
   await expect(page.getByTestId('return-campaign')).toHaveCount(0);
@@ -146,7 +155,7 @@ test('replayed campaign level returns to campaign instead of implying progressio
   });
   await page.goto('/game?mode=campaign&level=3&difficulty=beginner&size=6');
   await expect(page.getByTestId('game-screen')).toHaveAttribute('aria-label', '遊戲已就緒');
-  await finishBeginnerSixBySix(page);
+  await finishBundledCampaign(page, 3);
   await expect(page.getByTestId('return-campaign')).toBeEnabled();
   await expect(page.getByTestId('return-campaign')).toContainText('返回闖關');
   await expect(page.getByTestId('next-level')).toHaveCount(0);

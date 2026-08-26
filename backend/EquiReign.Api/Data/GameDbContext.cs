@@ -22,6 +22,7 @@ public sealed class GameDbContext(DbContextOptions<GameDbContext> options) : DbC
             entity.Property(x => x.Difficulty).HasMaxLength(20);
             entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
             entity.Property(x => x.RegionMap).HasColumnType("integer[]");
+            entity.Property(x => x.GivenQueenCellIndexes).HasColumnType("integer[]");
             entity.Property(x => x.SolutionColumns).HasColumnType("smallint[]");
         });
         modelBuilder.Entity<CampaignLevel>(entity =>
