@@ -16,10 +16,15 @@ test('next batch prefetch starts ten levels before the boundary', () => {
   assert.equal(getNextCampaignBatchStart(189), null);
   assert.equal(getNextCampaignBatchStart(190), 200);
   assert.equal(getNextCampaignBatchStart(199), 200);
+  assert.equal(getNextCampaignBatchStart(989), null);
+  assert.equal(getNextCampaignBatchStart(990), 1_000);
+  assert.equal(getNextCampaignBatchStart(1_000), null);
+  assert.equal(getNextCampaignBatchStart(1_001), null);
 });
 
-test('campaign batch cache keys are stable', () => {
+test('campaign batch cache keys are stable and finite', () => {
   assert.equal(getCampaignBatchStorageKey(100), 'equireign.campaign-batch.v1.100');
-  assert.equal(getCampaignBatchStorageKey(200), 'equireign.campaign-batch.v1.200');
+  assert.equal(getCampaignBatchStorageKey(1_000), 'equireign.campaign-batch.v1.1000');
   assert.throws(() => getCampaignBatchStorageKey(99), RangeError);
+  assert.throws(() => getCampaignBatchStorageKey(1_100), RangeError);
 });
