@@ -23,7 +23,8 @@ export async function loadCampaignBatch(startLevel: number): Promise<CachedCampa
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as CachedCampaignBatch;
-    return parsed.startLevel === startLevel && parsed.endLevel === startLevel + 99 && Array.isArray(parsed.puzzles) ? parsed : null;
+    const validEnd = parsed.endLevel >= startLevel && parsed.endLevel <= startLevel + 99;
+    return parsed.startLevel === startLevel && validEnd && Array.isArray(parsed.puzzles) ? parsed : null;
   } catch {
     return null;
   }
@@ -40,7 +41,7 @@ export async function findCachedCampaignPuzzle(level: number): Promise<CachedCam
   return batch?.puzzles.find((puzzle) => puzzle.level === level) ?? null;
 }
 
-export async function clearCampaignPuzzleCache(maxStartLevel = 10000): Promise<void> {
+export async function clearCampaignPuzzleCache(maxStartLevel = 1_000): Promise<void> {
   for (let startLevel = 100; startLevel <= maxStartLevel; startLevel += 100) {
     await persistenceStore.removeItem(getCampaignBatchStorageKey(startLevel));
   }
