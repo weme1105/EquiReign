@@ -6,8 +6,9 @@ import { completeCampaignLevel, recordChallengeSuccess, recordFirstClear } from 
 import { createGameSession, cycleCell, requestHint, restart, toPuzzleResult, toggleExcluded, undo } from '../src/game-core/session.ts';
 import type { BoardSize, Difficulty, GameSession, PuzzleDefinition } from '../src/game-core/types.ts';
 import { GameBoard } from '../src/features/game/GameBoard.tsx';
+import { getBundledCampaignPuzzle } from '../src/puzzles/bundled-campaign.ts';
 import { ensureDownloadedCampaignPuzzle } from '../src/puzzles/campaign-puzzle-source.ts';
-import { getCampaignPuzzle, getPuzzle } from '../src/puzzles/catalog.ts';
+import { getPuzzle } from '../src/puzzles/catalog.ts';
 import { clearActiveSession, loadActiveSession, saveActiveSession } from '../src/storage/active-session-storage';
 import { loadPlayerProgress, savePlayerProgress } from '../src/storage/player-progress-storage';
 
@@ -25,7 +26,7 @@ export default function GameScreen() {
   const bundledPuzzle = useMemo<PuzzleDefinition | null>(() => {
     if (requestedMode !== 'campaign') return getPuzzle(difficulty, size);
     if (!Number.isInteger(requestedLevel) || requestedLevel < 1) return null;
-    return requestedLevel < 100 ? getCampaignPuzzle(requestedLevel) : null;
+    return requestedLevel < 100 ? getBundledCampaignPuzzle(requestedLevel) : null;
   }, [difficulty, requestedLevel, requestedMode, size]);
   const context = { playMode: requestedMode, campaignLevel: requestedMode === 'campaign' && Number.isInteger(requestedLevel) ? requestedLevel : null } as const;
   const createSession = (definition: PuzzleDefinition): GameSession => createGameSession(definition, Date.now(), context);
