@@ -1,12 +1,16 @@
 import { expect, test } from '@playwright/test';
+import { getBundledCampaignPuzzle } from '../src/puzzles/bundled-campaign.ts';
+
+const bundledFixture = getBundledCampaignPuzzle(1);
+if (!bundledFixture) throw new Error('Bundled campaign fixture is missing.');
 
 const level100Puzzle = {
   level: 100,
   puzzleId: 'campaign-100-offline-fixture',
-  size: 6,
-  difficulty: 'beginner',
-  regionMap: [1,0,0,2,3,3, 1,1,0,2,3,3, 1,1,2,2,2,3, 4,2,2,3,3,3, 4,4,5,5,5,3, 4,4,4,5,5,5],
-  givenQueenCellIndexes: [2, 28],
+  size: bundledFixture.size,
+  difficulty: bundledFixture.difficulty,
+  regionMap: bundledFixture.regionMap,
+  givenQueenCellIndexes: bundledFixture.givenQueens.map(({ row, column }) => row * bundledFixture.size + column),
   version: 1,
 };
 
@@ -28,6 +32,6 @@ test('downloaded campaign level remains playable offline', async ({ page }) => {
   await page.goto('/game?mode=campaign&level=100&difficulty=beginner&size=6');
   await expect(page.getByTestId('game-screen')).toHaveAttribute('aria-label', '遊戲已就緒');
   await expect(page.getByTestId('game-board')).toBeVisible();
-  await expect(page.locator('[data-testid^="cell-"]')).toHaveCount(36);
-  await expect(page.locator('[data-testid^="cell-"][aria-label*="皇后，預置"]')).toHaveCount(2);
+  await expect(page.locator('[data-testid^="cell-"]')).toHaveCount(bundledFixture.size * bundledFixture.size);
+  await expect(page.locator('[data-testid^="cell-"][aria-label*="皇后，預置"]')).toHaveCount(bundledFixture.givenQueens.length);
 });
