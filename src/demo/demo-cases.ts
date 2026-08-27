@@ -1,4 +1,5 @@
 import { createBoard } from '../game-core/board.ts';
+import { findRuleConflicts } from '../game-core/rules.ts';
 import { extractFirstSolution } from '../game-core/solver.ts';
 import type { PuzzleDefinition } from '../game-core/types.ts';
 import { getBundledCampaignPuzzle } from '../puzzles/bundled-campaign.ts';
@@ -17,6 +18,37 @@ export interface DemoCase {
   readonly dualColorCellIndexes: readonly number[];
 }
 
+function assertDemoPuzzleIntegrity(puzzle: PuzzleDefinition): void {
+  const { size, regionMap } = puzzle;
+  if (regionMap.length !== size * size) throw new Error(`Demo puzzle ${puzzle.id} must contain exactly ${size * size} cells.`);
+
+  const regions = new Set(regionMap);
+  if (regions.size !== size) throw new Error(`Demo puzzle ${puzzle.id} must contain exactly ${size} regions.`);
+
+  for (const region of regions) {
+    const cells = regionMap.flatMap((value, index) => value === region ? [index] : []);
+    const pending = [cells[0]!];
+    const visited = new Set<number>();
+    while (pending.length) {
+      const index = pending.pop()!;
+      if (visited.has(index)) continue;
+      visited.add(index);
+      const row = Math.floor(index / size); const column = index % size;
+      const neighbors = [
+        row > 0 ? index - size : -1,
+        row < size - 1 ? index + size : -1,
+        column > 0 ? index - 1 : -1,
+        column < size - 1 ? index + 1 : -1,
+      ];
+      for (const neighbor of neighbors) if (neighbor >= 0 && regionMap[neighbor] === region && !visited.has(neighbor)) pending.push(neighbor);
+    }
+    if (visited.size !== cells.length) throw new Error(`Demo puzzle ${puzzle.id} contains a disconnected region ${region}.`);
+  }
+
+  const givenBoard = createBoard(puzzle);
+  if (findRuleConflicts(givenBoard).positions.size > 0) throw new Error(`Demo puzzle ${puzzle.id} contains conflicting given queens.`);
+}
+
 function buildCase(
   id: string,
   title: string,
@@ -27,6 +59,7 @@ function buildCase(
 ): DemoCase {
   const puzzle = getBundledCampaignPuzzle(bundledLevel);
   if (!puzzle) throw new Error(`Missing bundled demo puzzle at level ${bundledLevel}.`);
+  assertDemoPuzzleIntegrity(puzzle);
   const solution = extractFirstSolution(createBoard(puzzle));
   if (!solution) throw new Error(`Demo puzzle ${puzzle.id} has no solution.`);
 
