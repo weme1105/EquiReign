@@ -28,16 +28,16 @@ for (let level = 1; level <= LAST_BUNDLED_LEVEL; level += 1) {
   levelsBySize.set(size, levels);
 }
 
-// Generate a modest candidate buffer. The generator first creates a valid
-// N-Queens solution, then constructs connected regions around those queens;
-// uniqueness is checked only after the complete candidate exists.
+// Generate exactly the number of candidates required for each board size.
+// The generator already performs the expensive uniqueness check only after a
+// complete candidate has been constructed. We deliberately allow many seeds:
+// some board sizes have a much lower probability of producing a unique puzzle.
 for (const [size, required] of requiredBySize) {
-  const target = required + Math.max(4, Math.ceil(required * 0.1));
   const hashes = new Set<string>();
   const firstSeed = size * 10_000_000;
-  const maximumSeeds = Math.max(target * 300, 2_000);
+  const maximumSeeds = Math.max(required * 500, 10_000);
 
-  for (let offset = 0; hashes.size < target && offset < maximumSeeds; offset += 1) {
+  for (let offset = 0; hashes.size < required && offset < maximumSeeds; offset += 1) {
     const seed = firstSeed + offset;
     try {
       const generated = generator.generate(size, seed);
@@ -57,7 +57,7 @@ for (const [size, required] of requiredBySize) {
   }
 
   if (hashes.size < required) {
-    throw new Error(`Only generated ${hashes.size}/${required} unique ${size}x${size} puzzles.`);
+    throw new Error(`Only generated ${hashes.size}/${required} unique ${size}x${size} puzzles after ${maximumSeeds} seeds.`);
   }
 }
 
@@ -76,12 +76,9 @@ for (const [size, levels] of levelsBySize) {
   const available = ranked
     .filter((candidate) => candidate.size === size)
     .sort((a, b) => a.costScore - b.costScore || a.id.localeCompare(b.id));
-
-  // Assign candidates in solver-cost order. Difficulty labels follow campaign
-  // progression; this avoids requiring percentile buckets to contain an exact
-  // number of candidates in a small 150-level demo pool.
   const orderedLevels = [...levels].sort((a, b) => a - b);
   const used = new Set<string>();
+
   for (let position = 0; position < orderedLevels.length; position += 1) {
     const level = orderedLevels[position]!;
     const difficulty = demoDifficulty(level);
