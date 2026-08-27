@@ -6,7 +6,7 @@ function isDifficulty(value: string): value is Difficulty {
 }
 
 export function getBundledCampaignPuzzle(level: number): PuzzleDefinition | null {
-  if (!Number.isInteger(level) || level < 1 || level > 99) return null;
+  if (!Number.isInteger(level) || level < 1 || level > 150) return null;
   const source = BUNDLED_CAMPAIGN_PUZZLES[level - 1];
   if (!source || source.level !== level || !isDifficulty(source.difficulty)) return null;
   const givenQueens: Position[] = source.givenQueenCellIndexes.map((cell) => ({
