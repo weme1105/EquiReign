@@ -1,46 +1,33 @@
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { PanResponder, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useEffect, useRef } from 'react';
 import { cellIndex, positionKey } from '../../game-core/board.ts';
 import { findRuleConflicts } from '../../game-core/rules.ts';
 import { isGivenQueen, queenFeasibilityErrors } from '../../game-core/session.ts';
 import { extractFirstSolution } from '../../game-core/solver.ts';
-import type { GameSession } from '../../game-core/types.ts';
+import { applyDrag, type DragMode } from '../../game-core/drag.ts';
+import type { GameSession, Position } from '../../game-core/types.ts';
 
-interface Props { readonly session: GameSession; readonly onPress: (row: number, column: number) => void; readonly onLongPress: (row: number, column: number) => void }
+interface Props { readonly session: GameSession; readonly onPress: (row: number, column: number) => void; readonly onLongPress: (row: number, column: number) => void; readonly onSessionChange?: (session: GameSession) => void }
 const REGION_COLORS = ['#e8d7b7','#b7d9d0','#c8c0e1','#e2bcbc','#d5d7a9','#b9cfe2','#dfc3df','#c8d7bd','#e4c9aa','#bfc1d9','#d6c2ac','#b8d8c9'];
+const DRAG_THRESHOLD = 8;
 
-export function GameBoard({ session, onPress, onLongPress }: Props) {
-  const { width, height } = useWindowDimensions();
-  const boardSize = Math.min(width - 24, height * .58, 560);
-  const cellSize = boardSize / session.puzzle.size;
-  const conflicts = findRuleConflicts(session.boardState).positions;
-  const feasibility = queenFeasibilityErrors(session);
-  const solutionCrowns = new Set((extractFirstSolution({ ...session.boardState, cells: session.boardState.cells.map(() => 'empty') }) ?? []).map(({ row, column }) => row * session.puzzle.size + column));
-
-  return <View accessibilityLabel="game-board" style={[styles.board, { height: boardSize, width: boardSize }]} testID="game-board">
-    {session.boardState.cells.map((state, index) => {
-      const row = Math.floor(index / session.puzzle.size); const column = index % session.puzzle.size; const position = { row, column };
-      const key = positionKey(position); const given = isGivenQueen(session, position); const error = conflicts.has(key) || feasibility.has(key);
-      const hinted = session.hintTarget?.row === row && session.hintTarget.column === column;
-      const region = session.puzzle.regionMap[cellIndex(session.puzzle.size, position)]!;
-      const lost = session.lostCellIndexes.includes(index); const frozen = session.frozenCellIndexes.includes(index) && !session.revealedFrozenCellIndexes.includes(index);
-      const revealedCrown = session.revealedFrozenCellIndexes.includes(index) && solutionCrowns.has(index);
-      return <Pressable key={key} accessibilityRole="button" accessibilityState={{ disabled: given }}
-        accessibilityLabel={`第 ${row + 1} 列第 ${column + 1} 行，${lost ? '遺失' : frozen ? '冰封' : state === 'queen' || revealedCrown ? '皇后' : state === 'excluded' ? '叉號' : '空白'}${given ? '，預置' : ''}${error ? '，錯誤' : ''}`}
-        disabled={given || lost || frozen} onPress={() => onPress(row, column)} onLongPress={() => onLongPress(row, column)} delayLongPress={320}
-        testID={lost ? `lost-${row}-${column}` : frozen ? `frozen-${row}-${column}` : hinted ? 'hint-target' : `cell-${row}-${column}`} style={[styles.cell, { backgroundColor: REGION_COLORS[region % REGION_COLORS.length], height: cellSize, width: cellSize }, lost && styles.lost, frozen && styles.frozen, error && styles.error, hinted && styles.hinted]}>
-        {frozen && <Text style={styles.ice}>❄</Text>}
-        {(state === 'queen' || revealedCrown) && <Text style={[styles.queen, given && styles.given]} testID={`queen-${row}-${column}`}>♛</Text>}
-        {state === 'excluded' && <Text style={styles.excluded}>×</Text>}
-        {hinted && <View style={styles.hintDot} />}
-      </Pressable>;
-    })}
+export function GameBoard({ session, onPress, onLongPress, onSessionChange }: Props) {
+  const { width, height } = useWindowDimensions(); const boardSize = Math.min(width - 24, height * .58, 560); const cellSize = boardSize / session.puzzle.size;
+  const sessionRef = useRef(session); const pressRef = useRef(onPress); const changeRef = useRef(onSessionChange); const rectRef = useRef({ x: 0, y: 0, width: boardSize, height: boardSize });
+  const dragModeRef = useRef<DragMode | null>(null); const dragPositionsRef = useRef<Position[]>([]); const lastPositionRef = useRef<Position | null>(null); const dragMovedRef = useRef(false);
+  useEffect(() => { sessionRef.current = session; pressRef.current = onPress; changeRef.current = onSessionChange; }, [session, onPress, onSessionChange]);
+  const positionAt = (pageX: number, pageY: number): Position | null => { const rect = rectRef.current; const x = pageX - rect.x; const y = pageY - rect.y; if (x < 0 || y < 0 || x >= rect.width || y >= rect.height) return null; return { row: Math.floor(y / (rect.height / sessionRef.current.puzzle.size)), column: Math.floor(x / (rect.width / sessionRef.current.puzzle.size)) }; };
+  const appendSegment = (from: Position | null, to: Position): void => { if (!from) { dragPositionsRef.current.push(to); lastPositionRef.current = to; return; } const steps = Math.max(Math.abs(to.row - from.row), Math.abs(to.column - from.column)); for (let step = 1; step <= steps; step++) { const position = { row: Math.round(from.row + (to.row - from.row) * step / steps), column: Math.round(from.column + (to.column - from.column) * step / steps) }; if (!dragPositionsRef.current.some((item) => item.row === position.row && item.column === position.column)) dragPositionsRef.current.push(position); } lastPositionRef.current = to; };
+  const panResponder = useRef(PanResponder.create({
+    onMoveShouldSetPanResponderCapture: (_, gesture) => Math.abs(gesture.dx) >= DRAG_THRESHOLD || Math.abs(gesture.dy) >= DRAG_THRESHOLD,
+    onPanResponderGrant: (_, gesture) => { dragMovedRef.current = false; dragModeRef.current = null; dragPositionsRef.current = []; lastPositionRef.current = null; const start = positionAt(gesture.x0, gesture.y0); if (!start) return; const current = sessionRef.current; const index = cellIndex(current.puzzle.size, start); const state = current.boardState.cells[index]; if (isGivenQueen(current, start) || current.lostCellIndexes.includes(index) || (current.frozenCellIndexes.includes(index) && !current.revealedFrozenCellIndexes.includes(index))) return; dragModeRef.current = state === 'excluded' ? 'erase-excluded' : 'paint-excluded'; appendSegment(null, start); },
+    onPanResponderMove: (_, gesture) => { if (!dragModeRef.current) return; dragMovedRef.current = true; const position = positionAt(gesture.moveX, gesture.moveY); if (position) appendSegment(lastPositionRef.current, position); },
+    onPanResponderRelease: () => { const mode = dragModeRef.current; const positions = dragPositionsRef.current; if (mode && dragMovedRef.current) { const next = applyDrag(sessionRef.current, positions, mode); if (next !== sessionRef.current) changeRef.current?.(next); } dragModeRef.current = null; dragPositionsRef.current = []; lastPositionRef.current = null; },
+    onPanResponderTerminate: () => { dragModeRef.current = null; dragPositionsRef.current = []; lastPositionRef.current = null; },
+  })).current;
+  const conflicts = findRuleConflicts(session.boardState).positions; const feasibility = queenFeasibilityErrors(session); const solutionCrowns = new Set((extractFirstSolution({ ...session.boardState, cells: session.boardState.cells.map(() => 'empty') }) ?? []).map(({ row, column }) => row * session.puzzle.size + column));
+  return <View ref={(ref) => { ref?.measureInWindow((x, y, w, h) => { rectRef.current = { x, y, width: w, height: h }; }); }} onLayout={(event) => { const { width: w, height: h } = event.nativeEvent.layout; rectRef.current.width = w; rectRef.current.height = h; }} {...panResponder.panHandlers} accessibilityLabel="game-board" style={[styles.board, { height: boardSize, width: boardSize }]} testID="game-board">
+    {session.boardState.cells.map((state, index) => { const row = Math.floor(index / session.puzzle.size); const column = index % session.puzzle.size; const position = { row, column }; const key = positionKey(position); const given = isGivenQueen(session, position); const error = conflicts.has(key) || feasibility.has(key); const hinted = session.hintTarget?.row === row && session.hintTarget.column === column; const region = session.puzzle.regionMap[cellIndex(session.puzzle.size, position)]!; const lost = session.lostCellIndexes.includes(index); const frozen = session.frozenCellIndexes.includes(index) && !session.revealedFrozenCellIndexes.includes(index); const revealedCrown = session.revealedFrozenCellIndexes.includes(index) && solutionCrowns.has(index); return <Pressable key={key} accessibilityRole="button" accessibilityState={{ disabled: given }} accessibilityLabel={`第 ${row + 1} 列第 ${column + 1} 行，${lost ? '遺失' : frozen ? '冰封' : state === 'queen' || revealedCrown ? '皇后' : state === 'excluded' ? '叉號' : '空白'}${given ? '，預置' : ''}${error ? '，錯誤' : ''}`} disabled={given || lost || frozen} onPress={() => { if (!dragMovedRef.current) pressRef.current(row, column); }} onLongPress={() => onLongPress(row, column)} delayLongPress={320} testID={lost ? `lost-${row}-${column}` : frozen ? `frozen-${row}-${column}` : hinted ? 'hint-target' : `cell-${row}-${column}`} style={[styles.cell, { backgroundColor: REGION_COLORS[region % REGION_COLORS.length], height: cellSize, width: cellSize }, lost && styles.lost, frozen && styles.frozen, error && styles.error, hinted && styles.hinted]}>{frozen && <Text style={styles.ice}>❄</Text>}{(state === 'queen' || revealedCrown) && <Text style={[styles.queen, given && styles.given]} testID={`queen-${row}-${column}`}>♛</Text>}{state === 'excluded' && <Text style={styles.excluded}>×</Text>}{hinted && <View style={styles.hintDot} />}</Pressable>; })}
   </View>;
 }
-const styles = StyleSheet.create({
-  board: { borderColor: '#d6b870', borderRadius: 10, borderWidth: 3, flexDirection: 'row', flexWrap: 'wrap', overflow: 'hidden' },
-  cell: { alignItems: 'center', borderColor: 'rgba(23,20,42,.12)', borderWidth: .5, justifyContent: 'center', position: 'relative' },
-  error: { backgroundColor: '#d86470' }, hinted: { borderColor: '#fff29d', borderWidth: 4 }, queen: { color: '#17142a', fontSize: 29, lineHeight: 35 },
-  given: { color: '#9b6a08' }, excluded: { color: '#514b67', fontSize: 23, fontWeight: '500' },
-  hintDot: { backgroundColor: '#fff29d', borderRadius: 5, height: 9, position: 'absolute', right: 3, top: 3, width: 9 },
-  lost: { backgroundColor: '#17142a', borderColor: '#514a70', borderStyle: 'dashed', borderWidth: 1.5 }, frozen: { backgroundColor: '#b9dce8', borderColor: '#eefbff', borderWidth: 2 }, ice: { color: '#f5fdff', fontSize: 18 },
-});
+const styles = StyleSheet.create({ board: { borderColor: '#d6b870', borderRadius: 10, borderWidth: 3, flexDirection: 'row', flexWrap: 'wrap', overflow: 'hidden' }, cell: { alignItems: 'center', borderColor: 'rgba(23,20,42,.12)', borderWidth: .5, justifyContent: 'center', position: 'relative' }, error: { backgroundColor: '#d86470' }, hinted: { borderColor: '#fff29d', borderWidth: 4 }, queen: { color: '#17142a', fontSize: 29, lineHeight: 35 }, given: { color: '#9b6a08' }, excluded: { color: '#514b67', fontSize: 23, fontWeight: '500' }, hintDot: { backgroundColor: '#fff29d', borderRadius: 5, height: 9, position: 'absolute', right: 3, top: 3, width: 9 }, lost: { backgroundColor: '#17142a', borderColor: '#514a70', borderStyle: 'dashed', borderWidth: 1.5 }, frozen: { backgroundColor: '#b9dce8', borderColor: '#eefbff', borderWidth: 2 }, ice: { color: '#f5fdff', fontSize: 18 } });
