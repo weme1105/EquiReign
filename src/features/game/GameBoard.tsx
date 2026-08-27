@@ -1,46 +1,35 @@
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { PanResponder, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useEffect, useRef } from 'react';
 import { cellIndex, positionKey } from '../../game-core/board.ts';
 import { findRuleConflicts } from '../../game-core/rules.ts';
 import { isGivenQueen, queenFeasibilityErrors } from '../../game-core/session.ts';
 import { extractFirstSolution } from '../../game-core/solver.ts';
-import type { GameSession } from '../../game-core/types.ts';
+import type { GameSession, Position } from '../../game-core/types.ts';
 
 interface Props { readonly session: GameSession; readonly onPress: (row: number, column: number) => void; readonly onLongPress: (row: number, column: number) => void }
 const REGION_COLORS = ['#e8d7b7','#b7d9d0','#c8c0e1','#e2bcbc','#d5d7a9','#b9cfe2','#dfc3df','#c8d7bd','#e4c9aa','#bfc1d9','#d6c2ac','#b8d8c9'];
+const DRAG_THRESHOLD = 8;
 
 export function GameBoard({ session, onPress, onLongPress }: Props) {
-  const { width, height } = useWindowDimensions();
-  const boardSize = Math.min(width - 24, height * .58, 560);
-  const cellSize = boardSize / session.puzzle.size;
-  const conflicts = findRuleConflicts(session.boardState).positions;
-  const feasibility = queenFeasibilityErrors(session);
-  const solutionCrowns = new Set((extractFirstSolution({ ...session.boardState, cells: session.boardState.cells.map(() => 'empty') }) ?? []).map(({ row, column }) => row * session.puzzle.size + column));
-
-  return <View accessibilityLabel="game-board" style={[styles.board, { height: boardSize, width: boardSize }]} testID="game-board">
-    {session.boardState.cells.map((state, index) => {
-      const row = Math.floor(index / session.puzzle.size); const column = index % session.puzzle.size; const position = { row, column };
-      const key = positionKey(position); const given = isGivenQueen(session, position); const error = conflicts.has(key) || feasibility.has(key);
-      const hinted = session.hintTarget?.row === row && session.hintTarget.column === column;
-      const region = session.puzzle.regionMap[cellIndex(session.puzzle.size, position)]!;
-      const lost = session.lostCellIndexes.includes(index); const frozen = session.frozenCellIndexes.includes(index) && !session.revealedFrozenCellIndexes.includes(index);
-      const revealedCrown = session.revealedFrozenCellIndexes.includes(index) && solutionCrowns.has(index);
-      return <Pressable key={key} accessibilityRole="button" accessibilityState={{ disabled: given }}
-        accessibilityLabel={`第 ${row + 1} 列第 ${column + 1} 行，${lost ? '遺失' : frozen ? '冰封' : state === 'queen' || revealedCrown ? '皇后' : state === 'excluded' ? '叉號' : '空白'}${given ? '，預置' : ''}${error ? '，錯誤' : ''}`}
-        disabled={given || lost || frozen} onPress={() => onPress(row, column)} onLongPress={() => onLongPress(row, column)} delayLongPress={320}
-        testID={lost ? `lost-${row}-${column}` : frozen ? `frozen-${row}-${column}` : hinted ? 'hint-target' : `cell-${row}-${column}`} style={[styles.cell, { backgroundColor: REGION_COLORS[region % REGION_COLORS.length], height: cellSize, width: cellSize }, lost && styles.lost, frozen && styles.frozen, error && styles.error, hinted && styles.hinted]}>
-        {frozen && <Text style={styles.ice}>❄</Text>}
-        {(state === 'queen' || revealedCrown) && <Text style={[styles.queen, given && styles.given]} testID={`queen-${row}-${column}`}>♛</Text>}
-        {state === 'excluded' && <Text style={styles.excluded}>×</Text>}
-        {hinted && <View style={styles.hintDot} />}
-      </Pressable>;
-    })}
+  const { width, height } = useWindowDimensions(); const boardSize = Math.min(width - 24, height * .58, 560); const cellSize = boardSize / session.puzzle.size;
+  const sessionRef = useRef(session); const pressRef = useRef(onPress); const longPressRef = useRef(onLongPress); const rectRef = useRef({ x: 0, y: 0, width: boardSize, height: boardSize });
+  const positionsRef = useRef<Position[]>([]); const lastRef = useRef<Position | null>(null); const modeRef = useRef<'paint' | 'erase' | null>(null); const movedRef = useRef(false); const longPressedRef = useRef(false); const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => { sessionRef.current = session; pressRef.current = onPress; longPressRef.current = onLongPress; }, [session, onPress, onLongPress]);
+  const clearTimer = () => { if (timerRef.current) clearTimeout(timerRef.current); timerRef.current = null; };
+  const reset = () => { clearTimer(); positionsRef.current = []; lastRef.current = null; modeRef.current = null; movedRef.current = false; longPressedRef.current = false; };
+  const positionAt = (x: number, y: number): Position | null => { const r = rectRef.current; if (x < r.x || y < r.y || x >= r.x + r.width || y >= r.y + r.height) return null; const n = sessionRef.current.puzzle.size; return { row: Math.floor((y - r.y) / (r.height / n)), column: Math.floor((x - r.x) / (r.width / n)) }; };
+  const append = (from: Position | null, to: Position) => { if (!from) { positionsRef.current.push(to); lastRef.current = to; return; } const steps = Math.max(Math.abs(to.row - from.row), Math.abs(to.column - from.column)); for (let i = 1; i <= steps; i++) { const p = { row: Math.round(from.row + (to.row - from.row) * i / steps), column: Math.round(from.column + (to.column - from.column) * i / steps) }; if (!positionsRef.current.some((x) => x.row === p.row && x.column === p.column)) positionsRef.current.push(p); } lastRef.current = to; };
+  const panResponder = useRef(PanResponder.create({
+    onStartShouldSetPanResponderCapture: () => true,
+    onMoveShouldSetPanResponderCapture: () => true,
+    onPanResponderGrant: (_, g) => { reset(); const p = positionAt(g.x0, g.y0); if (!p) return; const s = sessionRef.current; const idx = cellIndex(s.puzzle.size, p); const state = s.boardState.cells[idx]; if (isGivenQueen(s, p) || s.lostCellIndexes.includes(idx) || (s.frozenCellIndexes.includes(idx) && !s.revealedFrozenCellIndexes.includes(idx))) return; modeRef.current = state === 'excluded' ? 'erase' : 'paint'; append(null, p); timerRef.current = setTimeout(() => { if (!movedRef.current && positionsRef.current.length === 1) { longPressedRef.current = true; longPressRef.current(p.row, p.column); } }, 320); },
+    onPanResponderMove: (_, g) => { if (!modeRef.current) return; if (Math.abs(g.dx) >= DRAG_THRESHOLD || Math.abs(g.dy) >= DRAG_THRESHOLD) { movedRef.current = true; clearTimer(); } if (!movedRef.current) return; const p = positionAt(g.moveX, g.moveY); if (p) append(lastRef.current, p); },
+    onPanResponderRelease: () => { clearTimer(); const mode = modeRef.current; const positions = positionsRef.current; if (mode && movedRef.current) { const current = sessionRef.current; for (const p of positions) { const idx = cellIndex(current.puzzle.size, p); const state = current.boardState.cells[idx]; if (isGivenQueen(current, p) || current.lostCellIndexes.includes(idx) || (current.frozenCellIndexes.includes(idx) && !current.revealedFrozenCellIndexes.includes(idx))) continue; if ((mode === 'paint' && state === 'empty') || (mode === 'erase' && state === 'excluded')) longPressRef.current(p.row, p.column); } } else if (positions.length === 1 && mode && !longPressedRef.current) { const p = positions[0]!; pressRef.current(p.row, p.column); } reset(); },
+    onPanResponderTerminate: reset,
+  })).current;
+  const conflicts = findRuleConflicts(session.boardState).positions; const feasibility = queenFeasibilityErrors(session); const solutionCrowns = new Set((extractFirstSolution({ ...session.boardState, cells: session.boardState.cells.map(() => 'empty') }) ?? []).map(({ row, column }) => row * session.puzzle.size + column));
+  return <View onLayout={(e) => { const { width: w, height: h } = e.nativeEvent.layout; rectRef.current.width = w; rectRef.current.height = h; }} {...panResponder.panHandlers} accessibilityLabel="game-board" style={[styles.board, { height: boardSize, width: boardSize }]} testID="game-board">
+    {session.boardState.cells.map((state, index) => { const row = Math.floor(index / session.puzzle.size); const column = index % session.puzzle.size; const position = { row, column }; const key = positionKey(position); const given = isGivenQueen(session, position); const error = conflicts.has(key) || feasibility.has(key); const hinted = session.hintTarget?.row === row && session.hintTarget.column === column; const region = session.puzzle.regionMap[cellIndex(session.puzzle.size, position)]!; const lost = session.lostCellIndexes.includes(index); const frozen = session.frozenCellIndexes.includes(index) && !session.revealedFrozenCellIndexes.includes(index); const revealedCrown = session.revealedFrozenCellIndexes.includes(index) && solutionCrowns.has(index); return <Pressable key={key} pointerEvents="none" accessibilityRole="button" accessibilityState={{ disabled: given }} accessibilityLabel={`第 ${row + 1} 列第 ${column + 1} 行，${lost ? '遺失' : frozen ? '冰封' : state === 'queen' || revealedCrown ? '皇后' : state === 'excluded' ? '叉號' : '空白'}${given ? '，預置' : ''}${error ? '，錯誤' : ''}`} testID={lost ? `lost-${row}-${column}` : frozen ? `frozen-${row}-${column}` : hinted ? 'hint-target' : `cell-${row}-${column}`} style={[styles.cell, { backgroundColor: REGION_COLORS[region % REGION_COLORS.length], height: cellSize, width: cellSize }, lost && styles.lost, frozen && styles.frozen, error && styles.error, hinted && styles.hinted]}>{frozen && <Text style={styles.ice}>❄</Text>}{(state === 'queen' || revealedCrown) && <Text style={[styles.queen, given && styles.given]} testID={`queen-${row}-${column}`}>♛</Text>}{state === 'excluded' && <Text style={styles.excluded}>×</Text>}{hinted && <View style={styles.hintDot} />}</Pressable>; })}
   </View>;
 }
-const styles = StyleSheet.create({
-  board: { borderColor: '#d6b870', borderRadius: 10, borderWidth: 3, flexDirection: 'row', flexWrap: 'wrap', overflow: 'hidden' },
-  cell: { alignItems: 'center', borderColor: 'rgba(23,20,42,.12)', borderWidth: .5, justifyContent: 'center', position: 'relative' },
-  error: { backgroundColor: '#d86470' }, hinted: { borderColor: '#fff29d', borderWidth: 4 }, queen: { color: '#17142a', fontSize: 29, lineHeight: 35 },
-  given: { color: '#9b6a08' }, excluded: { color: '#514b67', fontSize: 23, fontWeight: '500' },
-  hintDot: { backgroundColor: '#fff29d', borderRadius: 5, height: 9, position: 'absolute', right: 3, top: 3, width: 9 },
-  lost: { backgroundColor: '#17142a', borderColor: '#514a70', borderStyle: 'dashed', borderWidth: 1.5 }, frozen: { backgroundColor: '#b9dce8', borderColor: '#eefbff', borderWidth: 2 }, ice: { color: '#f5fdff', fontSize: 18 },
-});
+const styles = StyleSheet.create({ board: { borderColor: '#d6b870', borderRadius: 10, borderWidth: 3, flexDirection: 'row', flexWrap: 'wrap', overflow: 'hidden' }, cell: { alignItems: 'center', borderColor: 'rgba(23,20,42,.12)', borderWidth: .5, justifyContent: 'center', position: 'relative' }, error: { backgroundColor: '#d86470' }, hinted: { borderColor: '#fff29d', borderWidth: 4 }, queen: { color: '#17142a', fontSize: 29, lineHeight: 35 }, given: { color: '#9b6a08' }, excluded: { color: '#514b67', fontSize: 23, fontWeight: '500' }, hintDot: { backgroundColor: '#fff29d', borderRadius: 5, height: 9, position: 'absolute', right: 3, top: 3, width: 9 }, lost: { backgroundColor: '#17142a', borderColor: '#514a70', borderStyle: 'dashed', borderWidth: 1.5 }, frozen: { backgroundColor: '#b9dce8', borderColor: '#eefbff', borderWidth: 2 }, ice: { color: '#f5fdff', fontSize: 18 } });
