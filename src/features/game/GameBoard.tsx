@@ -13,11 +13,16 @@ interface Props {
   readonly showDualRegions?: boolean;
 }
 const REGION_COLORS = ['#e8d7b7','#b7d9d0','#c8c0e1','#e2bcbc','#d5d7a9','#b9cfe2','#dfc3df','#c8d7bd','#e4c9aa','#bfc1d9','#d6c2ac','#b8d8c9'];
+const BOARD_BORDER_WIDTH = 3;
 
 export function GameBoard({ session, onPress, onLongPress, dualColorCellIndexes = [], showDualRegions = false }: Props) {
   const { width, height } = useWindowDimensions();
   const boardSize = Math.min(width - 24, height * .58, 560);
-  const cellSize = boardSize / session.puzzle.size;
+  // React Native Web lays flex children inside the board's content box. The border
+  // consumes space from that box, so sizing cells against the outer width makes
+  // the last column wrap to the next row. Size cells against the inner square.
+  const innerBoardSize = boardSize - BOARD_BORDER_WIDTH * 2;
+  const cellSize = innerBoardSize / session.puzzle.size;
   const conflicts = findRuleConflicts(session.boardState).positions;
   const feasibility = queenFeasibilityErrors(session);
   const solutionCrowns = new Set((extractFirstSolution({ ...session.boardState, cells: session.boardState.cells.map(() => 'empty') }) ?? []).map(({ row, column }) => row * session.puzzle.size + column));
@@ -46,7 +51,7 @@ export function GameBoard({ session, onPress, onLongPress, dualColorCellIndexes 
   </View>;
 }
 const styles = StyleSheet.create({
-  board: { borderColor: '#d6b870', borderRadius: 10, borderWidth: 3, flexDirection: 'row', flexWrap: 'wrap', overflow: 'hidden' },
+  board: { borderColor: '#d6b870', borderRadius: 10, borderWidth: BOARD_BORDER_WIDTH, flexDirection: 'row', flexWrap: 'wrap', overflow: 'hidden' },
   cell: { alignItems: 'center', borderColor: 'rgba(23,20,42,.12)', borderWidth: .5, justifyContent: 'center', position: 'relative' },
   dualHalf: { bottom: 0, opacity: .92, position: 'absolute', right: 0, top: 0, width: '50%' },
   error: { backgroundColor: '#d86470' }, hinted: { borderColor: '#fff29d', borderWidth: 4 }, queen: { color: '#17142a', fontSize: 29, lineHeight: 35 },
