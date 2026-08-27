@@ -16,8 +16,7 @@ for (let level = 1; level <= LAST_BUNDLED_LEVEL; level += 1) {
   requiredBySize.set(size, (requiredBySize.get(size) ?? 0) + 1);
 }
 
-// Keep only a small deterministic buffer over the actual demand. The old generator
-// produced hundreds of unnecessary candidates per size, making CI generation slow.
+// Generate only what the demo needs, plus a small deterministic buffer.
 for (const [size, required] of requiredBySize) {
   const target = required + Math.max(8, Math.ceil(required * 0.25));
   const hashes = new Set<string>();
