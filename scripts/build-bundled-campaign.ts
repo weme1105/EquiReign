@@ -1,14 +1,14 @@
 import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { RegionPuzzleGenerator } from '../src/game-core/generator.ts';
-import { rankPuzzlePool, type RankedPuzzleCandidate } from '../src/game-core/levels.ts';
+import { rankPuzzlePool, type PuzzlePoolCandidate } from '../src/game-core/levels.ts';
 import { campaignBoardSize } from '../src/game-core/progression.ts';
 import type { BoardSize, Difficulty } from '../src/game-core/types.ts';
 
 const LAST_BUNDLED_LEVEL = 150;
 const outputPath = resolve(process.argv[2] ?? 'src/puzzles/bundled-campaign.generated.ts');
 const generator = new RegionPuzzleGenerator();
-const candidates: RankedPuzzleCandidate[] = [];
+const candidates: PuzzlePoolCandidate[] = [];
 const requiredBySize = new Map<BoardSize, number>();
 const levelsBySize = new Map<BoardSize, number[]>();
 
