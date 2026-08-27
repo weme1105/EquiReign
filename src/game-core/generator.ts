@@ -6,9 +6,13 @@ export class RegionPuzzleGenerator implements PuzzleGenerator {
     if (!Number.isInteger(size) || size < 4 || size > 12) throw new Error('Generator supports size 4..12.');
     const random = mulberry32(seed >>> 0);
 
-    for (let attempt = 0; attempt < 200; attempt += 1) {
+    // The expensive solver is only used after a complete candidate has been built.
+    // Generation itself starts from a valid N-Queens solution and grows connected
+    // regions around those fixed queen seeds.
+    for (let attempt = 0; attempt < 100; attempt += 1) {
       const solution = generateNQueensSolution(size, random);
       if (!solution) continue;
+
       const regionMap = colorSolutionIntoConnectedRegions(size, solution, random);
       if (!regionMap) continue;
 
@@ -20,15 +24,25 @@ export class RegionPuzzleGenerator implements PuzzleGenerator {
       const analysis = analyzeSolutions(board, 2);
       if (analysis.solutionCount !== 1) continue;
       const verifiedSolution = extractFirstSolution(board);
-      if (verifiedSolution) return { size, regionMap, solution: verifiedSolution, solverMetrics: analysis.metrics };
+      if (verifiedSolution) {
+        return {
+          size,
+          regionMap,
+          solution: verifiedSolution,
+          solverMetrics: analysis.metrics,
+        };
+      }
     }
 
     throw new Error(`Unable to generate a unique ${size}x${size} puzzle.`);
   }
 }
 
-/** Generate a valid N-Queens placement first; regions are generated around it afterwards. */
-function generateNQueensSolution(size: number, random: () => number): { row: number; column: number }[] | null {
+/** Generate the queen placement first. Every generated region must contain exactly one seed queen. */
+function generateNQueensSolution(
+  size: number,
+  random: () => number,
+): { row: number; column: number }[] | null {
   const columns = Array<number>(size).fill(-1);
   const usedColumns = new Set<number>();
   const usedDownDiagonals = new Set<number>();
@@ -36,12 +50,18 @@ function generateNQueensSolution(size: number, random: () => number): { row: num
 
   function place(row: number): boolean {
     if (row === size) return true;
+
     const options: number[] = [];
     for (let column = 0; column < size; column += 1) {
-      if (usedColumns.has(column) || usedDownDiagonals.has(row - column) || usedUpDiagonals.has(row + column)) continue;
+      if (
+        usedColumns.has(column)
+        || usedDownDiagonals.has(row - column)
+        || usedUpDiagonals.has(row + column)
+      ) continue;
       options.push(column);
     }
     shuffleInPlace(options, random);
+
     for (const column of options) {
       columns[row] = column;
       usedColumns.add(column);
@@ -59,14 +79,21 @@ function generateNQueensSolution(size: number, random: () => number): { row: num
   return place(0) ? columns.map((column, row) => ({ row, column })) : null;
 }
 
-/** Partition the board into exactly N orthogonally connected regions, each containing one solution queen. */
+/**
+ * Partition the board from the solution queens outward.
+ *
+ * Each region starts at exactly one solution queen and only claims cells adjacent
+ * to that region. This makes connectivity a construction invariant instead of a
+ * property that must be repaired afterwards.
+ */
 function colorSolutionIntoConnectedRegions(
   size: number,
   solution: readonly { row: number; column: number }[],
   random: () => number,
 ): number[] | null {
-  const regions = Array<number>(size * size).fill(-1);
-  const frontier: number[][] = Array.from({ length: size }, () => []);
+  const total = size * size;
+  const regions = Array<number>(total).fill(-1);
+  const frontiers = Array.from({ length: size }, () => new Set<number>());
   const regionSizes = Array<number>(size).fill(1);
   const directions = [[1, 0], [-1, 0], [0, 1], [0, -1]] as const;
 
@@ -75,56 +102,71 @@ function colorSolutionIntoConnectedRegions(
     regions[queen.row * size + queen.column] = region;
   }
 
-  for (let region = 0; region < size; region += 1) {
-    const queen = solution[region]!;
-    addFrontier(queen.row, queen.column, region);
-  }
-
-  function addFrontier(row: number, column: number, region: number): void {
+  function addFrontier(index: number, region: number): void {
+    const row = Math.floor(index / size);
+    const column = index % size;
     for (const [dr, dc] of directions) {
       const r = row + dr;
       const c = column + dc;
-      if (r >= 0 && c >= 0 && r < size && c < size && regions[r * size + c] === -1) frontier[region]!.push(r * size + c);
+      if (r < 0 || c < 0 || r >= size || c >= size) continue;
+      const next = r * size + c;
+      if (regions[next] === -1) frontiers[region]!.add(next);
     }
+  }
+
+  for (let region = 0; region < size; region += 1) {
+    const queen = solution[region]!;
+    addFrontier(queen.row * size + queen.column, region);
   }
 
   while (regions.includes(-1)) {
-    const options: { index: number; region: number; score: number }[] = [];
+    const candidates: { index: number; region: number; score: number }[] = [];
+
     for (let region = 0; region < size; region += 1) {
-      const unique = [...new Set(frontier[region]!)].filter((index) => regions[index] === -1);
-      frontier[region] = unique;
-      for (const index of unique) {
+      const frontier = frontiers[region]!;
+      for (const index of frontier) {
+        if (regions[index] !== -1) {
+          frontier.delete(index);
+          continue;
+        }
+
         const row = Math.floor(index / size);
         const column = index % size;
         const queen = solution[region]!;
-        const touchesOtherRegion = directions.some(([dr, dc]) => {
+        let neighbouringRegions = 0;
+        for (const [dr, dc] of directions) {
           const r = row + dr;
           const c = column + dc;
-          return r >= 0 && c >= 0 && r < size && c < size && regions[r * size + c] >= 0 && regions[r * size + c] !== region;
-        });
-        // Prefer compact regions and avoid accidental early bridges between regions.
-        const score = regionSizes[region]! * 3 + Math.abs(row - queen.row) + Math.abs(column - queen.column) + (touchesOtherRegion ? 5 : 0) + random();
-        options.push({ index, region, score });
+          if (r >= 0 && c >= 0 && r < size && c < size && regions[r * size + c] >= 0) {
+            neighbouringRegions += 1;
+          }
+        }
+
+        // Prefer compact growth while giving cells touching multiple regions a
+        // small penalty. The random term creates varied, deterministic topologies.
+        const distance = Math.abs(row - queen.row) + Math.abs(column - queen.column);
+        const score = regionSizes[region]! * 0.35 + distance * 0.1 + neighbouringRegions * 0.8 + random() * 0.5;
+        candidates.push({ index, region, score });
       }
     }
-    if (!options.length) return null;
-    options.sort((a, b) => a.score - b.score);
 
-    // Pick from the best few candidates to keep deterministic seeds varied without making generation expensive.
-    const best = options.slice(0, Math.min(8, options.length));
-    const selected = best[Math.floor(random() * best.length)]!;
+    if (!candidates.length) return null;
+    candidates.sort((a, b) => a.score - b.score);
+
+    // Choosing among the best candidates avoids a deterministic Voronoi pattern
+    // while keeping the expansion inexpensive.
+    const sampleSize = Math.min(12, candidates.length);
+    const selected = candidates[Math.floor(random() * sampleSize)]!;
     regions[selected.index] = selected.region;
+    frontiers[selected.region]!.delete(selected.index);
     regionSizes[selected.region] = regionSizes[selected.region]! + 1;
-    for (let region = 0; region < size; region += 1) {
-      const row = Math.floor(selected.index / size);
-      const column = selected.index % size;
-      addFrontier(row, column, region);
-    }
+    addFrontier(selected.index, selected.region);
   }
 
-  // Every region remains connected by construction and still contains exactly one solution queen.
   const queenCounts = Array<number>(size).fill(0);
-  for (const queen of solution) queenCounts[regions[queen.row * size + queen.column]!] += 1;
+  for (const queen of solution) {
+    queenCounts[regions[queen.row * size + queen.column]!] += 1;
+  }
   if (queenCounts.some((count) => count !== 1)) return null;
   return regions;
 }
