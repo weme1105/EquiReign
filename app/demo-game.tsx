@@ -4,16 +4,47 @@ import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { getDemoCase } from '../src/demo/demo-cases.ts';
 import { GameBoard } from '../src/features/game/GameBoard.tsx';
 import { createGameSession, cycleCell, restart, toPuzzleResult, toggleExcluded, undo } from '../src/game-core/session.ts';
-function formatTime(ms: number): string { const seconds = Math.floor(ms / 1000); return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`; }
-function createDemoSession(demoCase: NonNullable<ReturnType<typeof getDemoCase>>) { return { ...createGameSession(demoCase.puzzle, Date.now()), frozenCellIndexes: demoCase.frozenCellIndexes, lostCellIndexes: demoCase.lostCellIndexes }; }
-export default function DemoGameScreen() {
-  const params = useLocalSearchParams<{ demo?: string }>(); const demoCase = useMemo(() => getDemoCase(params.demo), [params.demo]);
-  const [session, setSession] = useState(() => demoCase ? createDemoSession(demoCase) : null); const [now, setNow] = useState(Date.now());
-  useEffect(() => { if (!session || session.status === 'completed') return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [session]);
-  useEffect(() => { if (demoCase) setSession(createDemoSession(demoCase)); }, [demoCase]);
-  if (!demoCase || !session) return <SafeAreaView style={styles.screen}><View style={styles.center}><Text style={styles.text}>找不到這個 Demo。</Text><Pressable onPress={() => router.replace('/demo')} style={styles.secondary}><Text style={styles.secondaryText}>返回 Demo</Text></Pressable></View></SafeAreaView>;
-  const result = toPuzzleResult(session, now);
-  if (session.status === 'completed') return <SafeAreaView style={styles.screen}><View style={styles.center}><Text style={styles.crown}>♛</Text><Text style={styles.title}>Demo 通關</Text><Text style={styles.text}>{formatTime(result.elapsedTimeMs)} · {session.history.length} 步</Text>{demoCase.dualColorCellIndexes.length > 0 && <View style={styles.reveal}><Text style={styles.revealTitle}>結算揭示：雙色域</Text><GameBoard session={session} onPress={() => {}} onLongPress={() => {}} dualColorCellIndexes={demoCase.dualColorCellIndexes} showDualRegions /></View>}<Pressable onPress={() => setSession(createDemoSession(demoCase))} style={styles.primary}><Text style={styles.primaryText}>再測一次</Text></Pressable><Pressable onPress={() => router.replace('/demo')} style={styles.secondary}><Text style={styles.secondaryText}>返回 Demo 列表</Text></Pressable></View></SafeAreaView>;
-  return <SafeAreaView style={styles.screen}><View style={styles.header}><Pressable onPress={() => router.replace('/demo')}><Text style={styles.secondaryText}>‹ Demo</Text></Pressable><View><Text style={styles.level}>{demoCase.title}</Text><Text style={styles.timer}>{formatTime(result.elapsedTimeMs)}</Text></View><View style={{ width: 50 }} /></View><View style={styles.content}><GameBoard session={session} onPress={(row, column) => setSession((current) => current ? cycleCell(current, { row, column }) : current)} onLongPress={(row, column) => setSession((current) => current ? toggleExcluded(current, { row, column }) : current)} dualColorCellIndexes={demoCase.dualColorCellIndexes} /><Text style={styles.text}>{demoCase.description}</Text><View style={styles.actions}><Pressable disabled={!session.history.length} onPress={() => setSession((current) => undo(current))} style={[styles.action, !session.history.length && styles.disabled]}><Text style={styles.actionText}>Undo</Text></Pressable><Pressable onPress={() => setSession((current) => restart(current))} style={styles.action}><Text style={styles.actionText}>Restart</Text></Pressable></View></View></SafeAreaView>;
+
+function formatTime(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
 }
+
+function createDemoSession(demoCase: NonNullable<ReturnType<typeof getDemoCase>>) {
+  return {
+    ...createGameSession(demoCase.puzzle, Date.now()),
+    frozenCellIndexes: demoCase.frozenCellIndexes,
+    lostCellIndexes: demoCase.lostCellIndexes,
+  };
+}
+
+export default function DemoGameScreen() {
+  const params = useLocalSearchParams<{ demo?: string }>();
+  const demoCase = useMemo(() => getDemoCase(params.demo), [params.demo]);
+  const [session, setSession] = useState(() => demoCase ? createDemoSession(demoCase) : null);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    if (!session || session.status === 'completed') return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [session]);
+
+  useEffect(() => {
+    if (demoCase) setSession(createDemoSession(demoCase));
+  }, [demoCase]);
+
+  if (!demoCase || !session) {
+    return <SafeAreaView style={styles.screen}><View style={styles.center}><Text style={styles.text}>找不到這個 Demo。</Text><Pressable onPress={() => router.replace('/demo')} style={styles.secondary}><Text style={styles.secondaryText}>返回 Demo</Text></Pressable></View></SafeAreaView>;
+  }
+
+  const result = toPuzzleResult(session, now);
+
+  if (session.status === 'completed') {
+    return <SafeAreaView style={styles.screen}><View style={styles.center}><Text style={styles.crown}>♛</Text><Text style={styles.title}>Demo 通關</Text><Text style={styles.text}>{formatTime(result.elapsedTimeMs)} · {session.history.length} 步</Text>{demoCase.dualColorCellIndexes.length > 0 && <View style={styles.reveal}><Text style={styles.revealTitle}>結算揭示：雙色域</Text><GameBoard session={session} onPress={() => {}} onLongPress={() => {}} dualColorCellIndexes={demoCase.dualColorCellIndexes} showDualRegions /></View>}<Pressable onPress={() => setSession(createDemoSession(demoCase))} style={styles.primary}><Text style={styles.primaryText}>再測一次</Text></Pressable><Pressable onPress={() => router.replace('/demo')} style={styles.secondary}><Text style={styles.secondaryText}>返回 Demo 列表</Text></Pressable></View></SafeAreaView>;
+  }
+
+  return <SafeAreaView style={styles.screen}><View style={styles.header}><Pressable onPress={() => router.replace('/demo')}><Text style={styles.secondaryText}>‹ Demo</Text></Pressable><View><Text style={styles.level}>{demoCase.title}</Text><Text style={styles.timer}>{formatTime(result.elapsedTimeMs)}</Text></View><View style={{ width: 50 }} /></View><View style={styles.content}><GameBoard session={session} onPress={(row, column) => setSession((current) => current ? cycleCell(current, { row, column }) : current)} onLongPress={(row, column) => setSession((current) => current ? toggleExcluded(current, { row, column }) : current)} dualColorCellIndexes={demoCase.dualColorCellIndexes} /><Text style={styles.text}>{demoCase.description}</Text><View style={styles.actions}><Pressable disabled={!session.history.length} onPress={() => setSession((current) => current ? undo(current) : current)} style={[styles.action, !session.history.length && styles.disabled]}><Text style={styles.actionText}>Undo</Text></Pressable><Pressable onPress={() => setSession((current) => current ? restart(current) : current)} style={styles.action}><Text style={styles.actionText}>Restart</Text></Pressable></View></View></SafeAreaView>;
+}
+
 const styles = StyleSheet.create({ screen: { backgroundColor: '#17142a', flex: 1 }, header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', padding: 18 }, level: { color: '#f0d58e', fontWeight: '800', textAlign: 'center' }, timer: { color: '#777087', marginTop: 2, textAlign: 'center' }, content: { alignItems: 'center', flex: 1, justifyContent: 'center', padding: 12 }, text: { color: '#aaa4bc', fontSize: 12, marginTop: 12, textAlign: 'center' }, actions: { flexDirection: 'row', gap: 10, marginTop: 16 }, action: { backgroundColor: '#292441', borderRadius: 11, paddingHorizontal: 18, paddingVertical: 11 }, actionText: { color: '#ddd6e8', fontWeight: '700' }, disabled: { opacity: .35 }, center: { alignItems: 'center', flex: 1, justifyContent: 'center', padding: 20 }, crown: { color: '#d6b870', fontSize: 58 }, title: { color: '#fffaf1', fontSize: 30, fontWeight: '800', marginTop: 6 }, reveal: { alignItems: 'center', marginTop: 14, maxHeight: 430 }, revealTitle: { color: '#f0d58e', fontWeight: '800', marginBottom: 8 }, primary: { backgroundColor: '#d6b870', borderRadius: 13, marginTop: 20, paddingHorizontal: 26, paddingVertical: 14 }, primaryText: { color: '#17142a', fontWeight: '800' }, secondary: { marginTop: 14, padding: 8 }, secondaryText: { color: '#aaa4bc' } });
