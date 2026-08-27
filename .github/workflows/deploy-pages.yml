@@ -53,9 +53,7 @@ jobs:
         run: npm ci
 
       - name: Build production
-        env:
-          EXPO_PUBLIC_GIT_SHA: ${{ github.sha }}
-        run: npm run build
+        run: EXPO_PUBLIC_GIT_SHA="$(git rev-parse HEAD)" npm run build
 
       - name: Write deployment manifest
         run: |
