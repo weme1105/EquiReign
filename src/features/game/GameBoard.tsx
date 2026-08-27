@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import type { GestureResponderEvent } from 'react-native';
 import { useRef, useState } from 'react';
 import { cellIndex, positionKey } from '../../game-core/board.ts';
 import { findRuleConflicts } from '../../game-core/rules.ts';
@@ -108,21 +109,21 @@ export function GameBoard({ session, onPress, onLongPress, dualColorCellIndexes 
     });
   };
 
-  const handleBoardTouchStart = (event: any) => {
+  const handleBoardTouchStart = (event: GestureResponderEvent) => {
     const { locationX, locationY } = event.nativeEvent;
     const index = indexFromPoint(locationX, locationY);
     if (index === null || isProtected(index)) { touchStart.current = null; return; }
     touchStart.current = { x: locationX, y: locationY, index };
   };
 
-  const shouldCaptureMove = (event: any) => {
+  const shouldCaptureMove = (event: GestureResponderEvent) => {
     const start = touchStart.current;
     if (!start) return false;
     const { locationX, locationY } = event.nativeEvent;
     return Math.hypot(locationX - start.x, locationY - start.y) >= DRAG_THRESHOLD_PX;
   };
 
-  const beginDrag = (event: any) => {
+  const beginDrag = (event: GestureResponderEvent) => {
     const start = touchStart.current;
     if (!start) return;
     const state = session.boardState.cells[start.index]!;
@@ -134,7 +135,7 @@ export function GameBoard({ session, onPress, onLongPress, dualColorCellIndexes 
     if (index !== null) { applyDragLine(drag.current, start.index, index); drag.current.lastIndex = index; }
   };
 
-  const moveDrag = (event: any) => {
+  const moveDrag = (event: GestureResponderEvent) => {
     const memory = drag.current;
     if (!memory) return;
     const { locationX, locationY } = event.nativeEvent;
