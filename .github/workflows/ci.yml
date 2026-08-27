@@ -1,15 +1,20 @@
 name: CI
+
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
+    branches: [main]
+
 jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: '22', cache: npm }
+        with:
+          node-version: '22'
+          cache: npm
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
@@ -21,10 +26,19 @@ jobs:
       - run: npm run e2e
       - if: always()
         uses: actions/upload-artifact@v4
-        with: { name: playwright-report, path: playwright-report/, if-no-files-found: ignore, retention-days: 7 }
+        with:
+          name: playwright-report
+          path: playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
       - if: failure()
         uses: actions/upload-artifact@v4
-        with: { name: playwright-test-results, path: test-results/, if-no-files-found: ignore, retention-days: 7 }
+        with:
+          name: playwright-test-results
+          path: test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
   backend:
     runs-on: ubuntu-latest
     defaults:
@@ -33,6 +47,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v5
-        with: { dotnet-version: '10.0.x' }
+        with:
+          dotnet-version: '10.0.x'
       - run: dotnet restore
       - run: dotnet build --no-restore --configuration Release
