@@ -2,44 +2,64 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { DIFFICULTIES } from '../src/game-core/difficulty.ts';
-import { CAMPAIGN_FINITE_LEVELS, CAMPAIGN_LEVELS_PER_STAGE, DIFFICULTY_ORDER, campaignBoardSize, campaignDifficulty, campaignStage, createPlayerProgress, type CampaignStage, type PlayerProgress } from '../src/game-core/progression.ts';
-import { prefetchNextCampaignBatch } from '../src/puzzles/campaign-puzzle-source.ts';
+import { BOARD_SIZE_ORDER, DIFFICULTY_ORDER, createPlayerProgress, type PlayerProgress } from '../src/game-core/progression.ts';
+import type { BoardSize, Difficulty } from '../src/game-core/types.ts';
 import { loadPlayerProgress } from '../src/storage/player-progress-storage';
 
 const LEVELS_PER_PAGE = 20;
-const STAGES: readonly CampaignStage[] = [...DIFFICULTY_ORDER];
+// Demo uses one tenth of the agreed production targets. Production remains
+// 100 / 200 / 300 / 400 / 500; this only limits the current playable preview.
+const DEMO_STAGE_COUNTS: Readonly<Record<Difficulty, number>> = {
+  beginner: 10,
+  intermediate: 20,
+  advanced: 30,
+  expert: 40,
+  king: 50,
+};
+const STAGES: readonly Difficulty[] = [...DIFFICULTY_ORDER];
+const DEMO_CAMPAIGN_LEVELS = STAGES.reduce((sum, stage) => sum + DEMO_STAGE_COUNTS[stage], 0);
 
-function stageLabel(stage: CampaignStage): string { return stage === 'infinite' ? '無限' : DIFFICULTIES[stage].label; }
-function stageStart(stage: CampaignStage): number {
-  if (stage === 'infinite') return CAMPAIGN_FINITE_LEVELS + 1;
-  return DIFFICULTY_ORDER.indexOf(stage) * CAMPAIGN_LEVELS_PER_STAGE + 1;
+function stageLabel(stage: Difficulty): string { return DIFFICULTIES[stage].label; }
+function stageStart(stage: Difficulty): number {
+  let start = 1;
+  for (const candidate of STAGES) {
+    if (candidate === stage) return start;
+    start += DEMO_STAGE_COUNTS[candidate];
+  }
+  return 1;
 }
-function stageEnd(stage: CampaignStage): number {
-  if (stage === 'infinite') return CAMPAIGN_FINITE_LEVELS;
-  return Math.min(CAMPAIGN_FINITE_LEVELS, stageStart(stage) + CAMPAIGN_LEVELS_PER_STAGE - 1);
+function stageEnd(stage: Difficulty): number { return stageStart(stage) + DEMO_STAGE_COUNTS[stage] - 1; }
+function demoDifficulty(level: number): Difficulty {
+  for (const stage of STAGES) if (level <= stageEnd(stage)) return stage;
+  return 'king';
+}
+function demoBoardSize(level: number): BoardSize {
+  const stage = demoDifficulty(level); const start = stageStart(stage); const count = DEMO_STAGE_COUNTS[stage];
+  const offset = Math.max(0, level - start);
+  const index = Math.min(BOARD_SIZE_ORDER.length - 1, Math.floor(offset * BOARD_SIZE_ORDER.length / count));
+  return BOARD_SIZE_ORDER[index]!;
 }
 
 export default function CampaignScreen() {
   const [progress, setProgress] = useState<PlayerProgress>(createPlayerProgress());
-  const [selectedStage, setSelectedStage] = useState<CampaignStage>('beginner');
+  const [selectedStage, setSelectedStage] = useState<Difficulty>('beginner');
   const [page, setPage] = useState(0);
 
   useFocusEffect(useCallback(() => {
     let active = true;
     void loadPlayerProgress().then((value) => {
       if (!active) return;
-      const currentLevel = Math.min(value.completedCampaignLevel + 1, CAMPAIGN_FINITE_LEVELS);
-      const currentStage = campaignStage(currentLevel);
+      const currentLevel = Math.min(value.completedCampaignLevel + 1, DEMO_CAMPAIGN_LEVELS);
+      const currentStage = demoDifficulty(currentLevel);
       const offset = currentLevel - stageStart(currentStage);
       setProgress(value);
       setSelectedStage(currentStage);
       setPage(Math.floor(offset / LEVELS_PER_PAGE));
-      void prefetchNextCampaignBatch(currentLevel);
     });
     return () => { active = false; };
   }, []));
 
-  const maxUnlockedLevel = Math.min(progress.completedCampaignLevel + 1, CAMPAIGN_FINITE_LEVELS);
+  const maxUnlockedLevel = Math.min(progress.completedCampaignLevel + 1, DEMO_CAMPAIGN_LEVELS);
   const availableStages = useMemo(() => STAGES.filter((stage) => stageStart(stage) <= maxUnlockedLevel || stage === 'beginner'), [maxUnlockedLevel]);
   const start = stageStart(selectedStage);
   const end = stageEnd(selectedStage);
@@ -49,16 +69,16 @@ export default function CampaignScreen() {
   const pageEnd = Math.min(end, pageStart + LEVELS_PER_PAGE - 1);
   const levels = Array.from({ length: pageEnd - pageStart + 1 }, (_, index) => pageStart + index);
 
-  const chooseStage = (stage: CampaignStage) => {
+  const chooseStage = (stage: Difficulty) => {
     setSelectedStage(stage);
     const current = maxUnlockedLevel;
-    setPage(campaignStage(current) === stage ? Math.floor((current - stageStart(stage)) / LEVELS_PER_PAGE) : 0);
+    setPage(demoDifficulty(current) === stage ? Math.floor((current - stageStart(stage)) / LEVELS_PER_PAGE) : 0);
   };
 
   return <SafeAreaView style={styles.screen}><ScrollView contentContainerStyle={styles.content}>
     <Pressable onPress={() => router.back()}><Text style={styles.back}>‹ 返回</Text></Pressable>
-    <Text style={styles.kicker}>CAMPAIGN</Text><Text style={styles.title}>選擇關卡</Text>
-    <Text style={styles.description}>固定關卡 · 所有玩家相同 · 完成後可重玩</Text>
+    <Text style={styles.kicker}>CAMPAIGN · DEMO 1/10</Text><Text style={styles.title}>選擇關卡</Text>
+    <Text style={styles.description}>固定關卡流程 Demo · 初 10 / 中 20 / 高 30 / 進 40 / 王者 50</Text>
 
     <Text style={styles.sectionTitle}>區域</Text>
     <View style={styles.stageGrid}>
@@ -81,9 +101,9 @@ export default function CampaignScreen() {
       {levels.map((level) => {
         const locked = level > maxUnlockedLevel;
         const completed = level <= progress.completedCampaignLevel;
-        const current = level === maxUnlockedLevel && progress.completedCampaignLevel < CAMPAIGN_FINITE_LEVELS;
-        const difficulty = campaignDifficulty(level);
-        const size = campaignBoardSize(level);
+        const current = level === maxUnlockedLevel && progress.completedCampaignLevel < DEMO_CAMPAIGN_LEVELS;
+        const difficulty = demoDifficulty(level);
+        const size = demoBoardSize(level);
         return <Pressable accessibilityRole="button" disabled={locked} key={level} onPress={() => router.push({ pathname: '/game', params: { mode: 'campaign', level: String(level), difficulty, size: String(size) } })} style={[styles.levelCell, current && styles.currentCell, locked && styles.disabled]} testID={`campaign-level-${level}`}>
           <Text style={[styles.levelNumber, { color: DIFFICULTIES[difficulty].accent }]}>{level}</Text>
           <Text style={styles.levelState}>{completed ? '✓ 已完成' : current ? '● 目前進度' : locked ? '🔒' : '○ 可遊玩'}</Text>
@@ -93,9 +113,9 @@ export default function CampaignScreen() {
     </View>
 
     <Pressable onPress={() => {
-      const level = maxUnlockedLevel; const difficulty = campaignDifficulty(level); const size = campaignBoardSize(level);
+      const level = maxUnlockedLevel; const difficulty = demoDifficulty(level); const size = demoBoardSize(level);
       router.push({ pathname: '/game', params: { mode: 'campaign', level: String(level), difficulty, size: String(size) } });
-    }} style={styles.currentButton} testID="campaign-current-level"><Text style={styles.currentButtonText}>{progress.completedCampaignLevel >= CAMPAIGN_FINITE_LEVELS ? `重玩最終關 · 第 ${CAMPAIGN_FINITE_LEVELS} 關` : `回到目前進度 · 第 ${maxUnlockedLevel} 關`}</Text></Pressable>
+    }} style={styles.currentButton} testID="campaign-current-level"><Text style={styles.currentButtonText}>{progress.completedCampaignLevel >= DEMO_CAMPAIGN_LEVELS ? `重玩 Demo 最終關 · 第 ${DEMO_CAMPAIGN_LEVELS} 關` : `回到目前進度 · 第 ${maxUnlockedLevel} 關`}</Text></Pressable>
   </ScrollView></SafeAreaView>;
 }
 
