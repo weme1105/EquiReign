@@ -7,8 +7,6 @@ import { completeCampaignLevel, recordChallengeSuccess, recordFirstClear } from 
 import { createGameSession, cycleCell, requestHint, restart, toPuzzleResult, toggleExcluded, undo } from '../src/game-core/session.ts';
 import type { BoardSize, Difficulty, GameSession, PuzzleDefinition } from '../src/game-core/types.ts';
 import { GameBoard } from '../src/features/game/GameBoard.tsx';
-import { getBundledCampaignPuzzle } from '../src/puzzles/bundled-campaign.ts';
-import { ensureDownloadedCampaignPuzzle } from '../src/puzzles/campaign-puzzle-source.ts';
 import { getPuzzle } from '../src/puzzles/catalog.ts';
 import { clearActiveSession, loadActiveSession, saveActiveSession } from '../src/storage/active-session-storage';
 import { loadPlayerProgress, savePlayerProgress } from '../src/storage/player-progress-storage';
@@ -28,9 +26,12 @@ export default function GameScreen() {
   const requestedMode = isDemo ? 'free' : params.mode === 'campaign' || params.mode === 'challenge' ? params.mode : 'free'; const requestedLevel = Number(params.level);
   const bundledPuzzle = useMemo<PuzzleDefinition | null>(() => {
     if (demoCase) return demoCase.puzzle;
-    if (requestedMode !== 'campaign') return getPuzzle(difficulty, size);
+    const base = getPuzzle(difficulty, size);
+    if (requestedMode !== 'campaign') return base;
     if (!Number.isInteger(requestedLevel) || requestedLevel < 1) return null;
-    return requestedLevel < 100 ? getBundledCampaignPuzzle(requestedLevel) : null;
+    // The preview campaign is intentionally local and deterministic so all 150
+    // demo levels are playable from Pages without the production puzzle API.
+    return { ...base, id: `demo-campaign-${requestedLevel}-${base.id}` };
   }, [demoCase, difficulty, requestedLevel, requestedMode, size]);
   const context = { playMode: requestedMode, campaignLevel: requestedMode === 'campaign' && Number.isInteger(requestedLevel) ? requestedLevel : null } as const;
   const createSession = (definition: PuzzleDefinition): GameSession => {
@@ -45,10 +46,7 @@ export default function GameScreen() {
   useEffect(() => {
     let active = true; setIsReady(false); setLoadError(false);
     void (async () => {
-      let resolved = bundledPuzzle;
-      if (!isDemo && requestedMode === 'campaign' && Number.isInteger(requestedLevel) && requestedLevel >= 100) {
-        try { resolved = await ensureDownloadedCampaignPuzzle(requestedLevel); } catch { resolved = null; }
-      }
+      const resolved = bundledPuzzle;
       if (!active) return;
       if (!resolved) { setPuzzle(null); setSession(null); setLoadError(true); return; }
       const saved = !isDemo && resumeSaved ? await loadActiveSession() : null;
@@ -57,7 +55,7 @@ export default function GameScreen() {
       setPuzzle(resolved); setSession(next); setNow(Date.now()); setIsReady(true);
     })();
     return () => { active = false; };
-  }, [bundledPuzzle, isDemo, resumeSaved, requestedMode, requestedLevel]);
+  }, [bundledPuzzle, isDemo, resumeSaved]);
 
   useEffect(() => { if (isDemo || !isReady || !session) return; if (session.status === 'completed') void clearActiveSession(); else void saveActiveSession(session); }, [isDemo, isReady, session]);
   useEffect(() => { if (!session || session.status === 'completed') return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [session]);
@@ -110,7 +108,7 @@ export default function GameScreen() {
     <Pressable accessibilityRole="button" onPress={() => router.push('/settings')} testID="game-settings"><Text style={styles.back}>設定</Text></Pressable>
   </View><View style={styles.content}>
     <GameBoard session={session} onPress={(row, column) => setSession((current) => current ? cycleCell(current, { row, column }) : current)} onLongPress={(row, column) => setSession((current) => current ? toggleExcluded(current, { row, column }) : current)} dualColorCellIndexes={demoCase?.dualColorCellIndexes} />
-    <Text style={styles.instruction}>{demoCase ? demoCase.description : '點擊：空白 → × → 皇后 · 金色皇后不可修改'}</Text>
+    <Text style={styles.instruction}>{demoCase ? demoCase.description : '單點切換 X／空白 · 1 秒內連點放皇冠 · 拖曳批次標記或擦除 X'}</Text>
     {demoCase?.dualColorCellIndexes.length ? <Text style={styles.demoNote}>雙色域目前依正式規則在遊戲中隱藏，通關結算才揭示。</Text> : null}
     {session.completionError && <Text style={styles.errorText} testID="completion-error">盤面尚未正確完成，請檢查紅色衝突。</Text>}
     <View style={styles.actions}>
