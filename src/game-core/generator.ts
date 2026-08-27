@@ -137,7 +137,7 @@ function colorSolutionIntoConnectedRegions(
         for (const [dr, dc] of directions) {
           const r = row + dr;
           const c = column + dc;
-          if (r >= 0 && c >= 0 && r < size && c < size && regions[r * size + c] >= 0) {
+          if (r >= 0 && c >= 0 && r < size && c < size && regions[r * size + c]! >= 0) {
             neighbouringRegions += 1;
           }
         }
@@ -165,7 +165,8 @@ function colorSolutionIntoConnectedRegions(
 
   const queenCounts = Array<number>(size).fill(0);
   for (const queen of solution) {
-    queenCounts[regions[queen.row * size + queen.column]!] += 1;
+    const region = regions[queen.row * size + queen.column]!;
+    queenCounts[region]! += 1;
   }
   if (queenCounts.some((count) => count !== 1)) return null;
   return regions;
