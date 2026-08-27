@@ -10,33 +10,7 @@ const outputPath = resolve(process.argv[2] ?? 'src/puzzles/bundled-campaign.gene
 const generator = new RegionPuzzleGenerator();
 const candidates: RankedPuzzleCandidate[] = [];
 const requiredBySize = new Map<BoardSize, number>();
-
-for (let level = 1; level <= LAST_BUNDLED_LEVEL; level += 1) {
-  const size = campaignBoardSize(level);
-  requiredBySize.set(size, (requiredBySize.get(size) ?? 0) + 1);
-}
-
-// Generate only what the demo needs, plus a small deterministic buffer.
-for (const [size, required] of requiredBySize) {
-  const target = required + Math.max(8, Math.ceil(required * 0.25));
-  const hashes = new Set<string>();
-  const firstSeed = size * 10_000_000;
-  const maximumSeeds = target * 250;
-  for (let seed = firstSeed; hashes.size < target && seed < firstSeed + maximumSeeds; seed += 1) {
-    try {
-      const generated = generator.generate(size, seed);
-      const hash = generated.regionMap.join(',');
-      if (hashes.has(hash)) continue;
-      hashes.add(hash);
-      candidates.push({ id: `${size}x${size}-seed-${seed}`, size, regionMap: generated.regionMap, solution: generated.solution, solverMetrics: generated.solverMetrics });
-    } catch { /* Deterministic failed seeds are skipped. */ }
-  }
-  if (hashes.size < required) throw new Error(`Only generated ${hashes.size}/${required} unique ${size}x${size} puzzles.`);
-}
-
-const ranked = rankPuzzlePool(candidates);
-const used = new Set<string>();
-const bundled = [];
+const levelsBySize = new Map<BoardSize, number[]>();
 
 function demoDifficulty(level: number): Difficulty {
   if (level <= 10) return 'beginner';
@@ -48,25 +22,92 @@ function demoDifficulty(level: number): Difficulty {
 
 for (let level = 1; level <= LAST_BUNDLED_LEVEL; level += 1) {
   const size = campaignBoardSize(level);
-  const difficulty = demoDifficulty(level);
-  const eligible = ranked
-    .filter((candidate) => candidate.size === size && candidate.costTier === difficulty && !used.has(candidate.id))
-    .sort((a, b) => a.costScore - b.costScore || a.id.localeCompare(b.id));
-  if (!eligible.length) throw new Error(`No unused ${size}x${size} ${difficulty} candidate remains for level ${level}.`);
-  const mixed = Math.imul(level ^ 0x7f4a7c15, 0x9e3779b1) >>> 0;
-  const selected: RankedPuzzleCandidate = eligible[mixed % eligible.length]!;
-  used.add(selected.id);
-  const givenSolutionIndexes = difficulty === 'beginner'
-    ? [1, size - 2]
-    : difficulty === 'intermediate'
-      ? [Math.floor(size / 2)]
-      : [];
-  const givenQueenCellIndexes = givenSolutionIndexes.map((solutionIndex) => {
-    const position = selected.solution[solutionIndex]!;
-    return position.row * size + position.column;
-  });
-  bundled.push({ level, puzzleId: `campaign-${level}-${selected.id}`, size, difficulty, regionMap: selected.regionMap, givenQueenCellIndexes, version: 1 });
+  requiredBySize.set(size, (requiredBySize.get(size) ?? 0) + 1);
+  const levels = levelsBySize.get(size) ?? [];
+  levels.push(level);
+  levelsBySize.set(size, levels);
 }
+
+// Generate only the number of candidates needed for the Demo, plus a small buffer.
+// Candidate difficulty is assigned by relative solver cost inside each size below,
+// so the generator does not need to overproduce hundreds of candidates just to hit
+// fixed percentile buckets that may not be represented by this 150-level sample.
+for (const [size, required] of requiredBySize) {
+  const target = required + Math.max(8, Math.ceil(required * 0.15));
+  const hashes = new Set<string>();
+  const firstSeed = size * 10_000_000;
+  const maximumSeeds = target * 120;
+  for (let seed = firstSeed; hashes.size < target && seed < firstSeed + maximumSeeds; seed += 1) {
+    try {
+      const generated = generator.generate(size, seed);
+      const hash = generated.regionMap.join(',');
+      if (hashes.has(hash)) continue;
+      hashes.add(hash);
+      candidates.push({
+        id: `${size}x${size}-seed-${seed}`,
+        size,
+        regionMap: generated.regionMap,
+        solution: generated.solution,
+        solverMetrics: generated.solverMetrics,
+      });
+    } catch {
+      // Deterministic failed seeds are skipped.
+    }
+  }
+  if (hashes.size < required) {
+    throw new Error(`Only generated ${hashes.size}/${required} unique ${size}x${size} puzzles.`);
+  }
+}
+
+const ranked = rankPuzzlePool(candidates);
+const bundled = [];
+
+for (const [size, levels] of levelsBySize) {
+  const available = ranked
+    .filter((candidate) => candidate.size === size)
+    .sort((a, b) => a.costScore - b.costScore || a.id.localeCompare(b.id));
+
+  // The Demo's stage order is the difficulty order. For a size that appears in
+  // multiple stages, assign the easiest remaining candidates to the earlier stage.
+  // This preserves monotonic difficulty without requiring a large percentile pool.
+  const used = new Set<string>();
+  const orderedLevels = [...levels].sort((a, b) => a - b);
+  for (const level of orderedLevels) {
+    const difficulty = demoDifficulty(level);
+    const unused = available.filter((candidate) => !used.has(candidate.id));
+    if (!unused.length) throw new Error(`No unused ${size}x${size} candidate remains for level ${level}.`);
+
+    // Spread picks deterministically through the portion assigned to this stage,
+    // while keeping solver cost non-decreasing across the Demo progression.
+    const previous = orderedLevels.filter((value) => value < level).length;
+    const remainingLevels = orderedLevels.length - previous;
+    const index = Math.min(previous, unused.length - remainingLevels);
+    const selected: RankedPuzzleCandidate = unused[index]!;
+    used.add(selected.id);
+
+    const givenSolutionIndexes = difficulty === 'beginner'
+      ? [1, size - 2]
+      : difficulty === 'intermediate'
+        ? [Math.floor(size / 2)]
+        : [];
+    const givenQueenCellIndexes = givenSolutionIndexes.map((solutionIndex) => {
+      const position = selected.solution[solutionIndex]!;
+      return position.row * size + position.column;
+    });
+
+    bundled.push({
+      level,
+      puzzleId: `campaign-${level}-${selected.id}`,
+      size,
+      difficulty,
+      regionMap: selected.regionMap,
+      givenQueenCellIndexes,
+      version: 1,
+    });
+  }
+}
+
+bundled.sort((a, b) => a.level - b.level);
 
 if (bundled.length !== LAST_BUNDLED_LEVEL) throw new Error(`Expected ${LAST_BUNDLED_LEVEL} bundled puzzles, got ${bundled.length}.`);
 if (new Set(bundled.map((puzzle) => puzzle.puzzleId)).size !== bundled.length) throw new Error('Bundled puzzle IDs must be unique.');
