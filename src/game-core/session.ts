@@ -8,7 +8,7 @@ import { createInfinitePresentation } from './infinite.ts';
 import { createFrozenPresentation, resolveFrozenCells } from './frozen.ts';
 import type { CellState, GameSession, Position, PuzzleDefinition, PuzzleResult } from './types.ts';
 
-const NEXT_STATE: Readonly<Record<CellState, CellState>> = { empty: 'excluded', excluded: 'queen', queen: 'empty' };
+const NEXT_STATE: Readonly<Record<CellState, CellState>> = { empty: 'excluded', excluded: 'empty', queen: 'empty' };
 
 export function createGameSession(puzzle: PuzzleDefinition, nowMs = Date.now(), context: { readonly playMode?: GameSession['playMode']; readonly campaignLevel?: number | null } = {}): GameSession {
   validatePuzzle(puzzle);
@@ -97,6 +97,15 @@ export function cycleCell(session: GameSession, position: Position, nowMs = Date
   const index = cellIndex(session.puzzle.size, position);
   const nextState = NEXT_STATE[session.boardState.cells[index]!]!;
   return withPlayerBoard(withExcludedUsage(session, position, nextState), withCell(session.boardState, position, nextState), nowMs);
+}
+
+export function doubleTapCell(session: GameSession, position: Position, nowMs = Date.now()): GameSession {
+  if (session.status === 'completed' || !isInside(session.puzzle.size, position) || isGivenQueen(session, position) || isHiddenSpecialCell(session, position)) return session;
+  const index = cellIndex(session.puzzle.size, position);
+  const current = session.boardState.cells[index]!;
+  const nextState: CellState = current === 'queen' ? 'excluded' : 'queen';
+  const nextSession = withPlayerBoard(withCell(session, position, nextState), nowMs);
+  return nextState === 'excluded' ? withExcludedUsage(nextSession, position, nextState) : nextSession;
 }
 
 export function placeQueen(session: GameSession, position: Position, nowMs = Date.now()): GameSession {
