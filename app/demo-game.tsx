@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { getDemoCase } from '../src/demo/demo-cases.ts';
 import { GameBoard } from '../src/features/game/GameBoard.tsx';
-import { createGameSession, cycleCell, placeQueen, restart, toPuzzleResult, toggleExcluded, undo } from '../src/game-core/session.ts';
+import { createGameSession, cycleCell, placeQueen, restart, toPuzzleResult, undo } from '../src/game-core/session.ts';
 
 function formatTime(ms: number): string {
   const seconds = Math.floor(ms / 1000);
