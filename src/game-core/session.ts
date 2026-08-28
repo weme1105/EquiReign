@@ -2,7 +2,7 @@ import { cellIndex, createBoard, isInside, positionKey, positionsWithState, with
 import { DIFFICULTIES } from './difficulty.ts';
 import { validatePuzzle } from './puzzle.ts';
 import { hasCompleteQueenCount, validateCompletedBoard } from './rules.ts';
-import { findLogicalHint, extractFirstSolution } from './solver.ts';
+import { findLogicalHint, extractFirstSolution, canCompleteWithQueen } from './solver.ts';
 import { createInfinitePresentation } from './infinite.ts';
 import { createFrozenPresentation, resolveFrozenCells } from './frozen.ts';
 import type { CellState, GameSession, Position, PuzzleDefinition, PuzzleResult } from './types.ts';
@@ -21,6 +21,16 @@ export function configureInfiniteSession(session: GameSession): GameSession {
 
 function seededRandom(seed: number): () => number { let state = seed >>> 0; return () => { state += 0x6d2b79f5; let value = state; value = Math.imul(value ^ value >>> 15, value | 1); value ^= value + Math.imul(value ^ value >>> 7, value | 61); return ((value ^ value >>> 14) >>> 0) / 4_294_967_296; }; }
 export function isGivenQueen(session: GameSession, position: Position): boolean { return session.puzzle.givenQueens.some((given) => given.row === position.row && given.column === position.column); }
+export function queenFeasibilityErrors(session: GameSession): ReadonlySet<string> {
+  const policy = DIFFICULTIES[session.difficulty];
+  if (!policy.realtimeQueenValidation) return new Set<string>();
+  const errors = new Set<string>();
+  for (const position of positionsWithState(session.boardState, 'queen')) {
+    if (isGivenQueen(session, position)) continue;
+    if (!canCompleteWithQueen(createBoard(session.puzzle), position)) errors.add(positionKey(position));
+  }
+  return errors;
+}
 function withPlayerBoard(session: GameSession, boardState: GameSession['boardState'], nowMs: number): GameSession {
   let revealedFrozenCellIndexes = session.revealedFrozenCellIndexes; let completed: boolean; let completionError = false;
   if (session.lostCellIndexes.length || session.frozenCellIndexes.length) {
