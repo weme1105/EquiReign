@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import { useRef, useState } from 'react';
-import { cellIndex, positionKey } from '../../game-core/board.ts';
+import { useMemo, useRef, useState } from 'react';
+import { cellIndex, createBoard, positionKey } from '../../game-core/board.ts';
 import { findRuleConflicts } from '../../game-core/rules.ts';
 import { isGivenQueen } from '../../game-core/session.ts';
 import { extractFirstSolution } from '../../game-core/solver.ts';
@@ -19,7 +19,13 @@ const BOARD_BORDER_WIDTH = 3; const DRAG_THRESHOLD_PX = 8;
 
 export function GameBoard({ session, onPress, onLongPress, dualColorCellIndexes = [], showDualRegions = false }: Props) {
   const { width, height } = useWindowDimensions(); const boardSize = Math.min(width - 24, height * .58, 560); const innerBoardSize = boardSize - BOARD_BORDER_WIDTH * 2; const cellSize = innerBoardSize / session.puzzle.size;
-  const conflicts = findRuleConflicts(session.boardState).positions; const solutionCrowns = new Set((extractFirstSolution({ ...session.boardState, cells: session.boardState.cells.map(() => 'empty') }) ?? []).map(({ row, column }) => row * session.puzzle.size + column)); const dualSet = new Set(dualColorCellIndexes);
+  const conflicts = useMemo(() => findRuleConflicts(session.boardState).positions, [session.boardState]);
+  const solutionCrowns = useMemo(() => {
+    if (session.revealedFrozenCellIndexes.length === 0) return new Set<number>();
+    const solution = extractFirstSolution(createBoard(session.puzzle));
+    return new Set((solution ?? []).map(({ row, column }) => row * session.puzzle.size + column));
+  }, [session.puzzle, session.revealedFrozenCellIndexes]);
+  const dualSet = useMemo(() => new Set(dualColorCellIndexes), [dualColorCellIndexes]);
   const drag = useRef<DragMemory | null>(null); const [lastInteractedIndex, setLastInteractedIndex] = useState<number | null>(null);
   const isProtected = (index: number): boolean => { const row = Math.floor(index / session.puzzle.size); const column = index % session.puzzle.size; return isGivenQueen(session, { row, column }) || session.lostCellIndexes.includes(index) || (session.frozenCellIndexes.includes(index) && !session.revealedFrozenCellIndexes.includes(index)); };
   const invokeForIndex = (index: number, action: 'press' | 'toggle-x') => { if (isProtected(index)) return; const row = Math.floor(index / session.puzzle.size); const column = index % session.puzzle.size; setLastInteractedIndex(index); if (action === 'press') onPress(row, column); else onLongPress(row, column); };
