@@ -4,7 +4,7 @@ import { cellIndex, createBoard, positionKey } from '../../game-core/board.ts';
 import { findRuleConflicts } from '../../game-core/rules.ts';
 import { isGivenQueen } from '../../game-core/session.ts';
 import { extractFirstSolution } from '../../game-core/solver.ts';
-import type { GameSession } from '../../game-core/types.ts';
+import type { CellState, GameSession } from '../../game-core/types.ts';
 
 interface Props {
   readonly session: GameSession;
@@ -14,7 +14,7 @@ interface Props {
   readonly showDualRegions?: boolean;
 }
 interface DragMemory { lastIndex: number; readonly startIndex: number; readonly startX: number; readonly startY: number; readonly mode: 'fill-x' | 'erase-x'; dragging: boolean; readonly visited: Set<number> }
-interface PendingTap { readonly index: number; readonly timestamp: number; readonly timer: ReturnType<typeof setTimeout> }
+interface PendingTap { readonly index: number; readonly timestamp: number; readonly originalState: CellState; readonly timer: ReturnType<typeof setTimeout> }
 const REGION_COLORS = ['#e8d7b7','#b7d9d0','#c8c0e1','#e2bcbc','#d5d7a9','#b9cfe2','#dfc3df','#c8d7bd','#e4c9aa','#bfc1d9','#d6c2ac','#b8d8c9'];
 const BOARD_BORDER_WIDTH = 3; const DRAG_THRESHOLD_PX = 8; const DOUBLE_TAP_WINDOW_MS = 1000;
 
@@ -41,11 +41,16 @@ export function GameBoard({ session, onPress, onDoublePress, dualColorCellIndexe
     if (isProtected(index)) return;
     const now = Date.now(); const pending = pendingTap.current;
     if (pending && pending.index === index && now - pending.timestamp <= DOUBLE_TAP_WINDOW_MS) {
-      clearPendingTap(); invokeForIndex(index, 'double'); return;
+      clearPendingTap();
+      if (pending.originalState === 'queen') invokeForIndex(index, 'press');
+      else invokeForIndex(index, 'double');
+      return;
     }
-    if (pending) { clearPendingTap(); invokeForIndex(pending.index, 'press'); }
-    const timer = setTimeout(() => { if (pendingTap.current?.index === index) { pendingTap.current = null; invokeForIndex(index, 'press'); } }, DOUBLE_TAP_WINDOW_MS);
-    pendingTap.current = { index, timestamp: now, timer };
+    if (pending) clearPendingTap();
+    const originalState = session.boardState.cells[index]!;
+    invokeForIndex(index, 'press');
+    const timer = setTimeout(() => { if (pendingTap.current?.index === index) pendingTap.current = null; }, DOUBLE_TAP_WINDOW_MS);
+    pendingTap.current = { index, timestamp: now, originalState, timer };
   };
   return <View accessibilityLabel="game-board" style={[styles.board, { height: boardSize, width: boardSize }]} testID="game-board">
     {session.boardState.cells.map((state, index) => { const row = Math.floor(index / session.puzzle.size); const column = index % session.puzzle.size; const position = { row, column }; const key = positionKey(position); const given = isGivenQueen(session, position); const error = lastInteractedIndex === index && (conflicts.has(key) || unitHasNoQueenAndAllX(index)); const hinted = session.hintTarget?.row === row && session.hintTarget.column === column; const region = session.puzzle.regionMap[cellIndex(session.puzzle.size, position)]!; const lost = session.lostCellIndexes.includes(index); const frozen = session.frozenCellIndexes.includes(index) && !session.revealedFrozenCellIndexes.includes(index); const revealedCrown = session.revealedFrozenCellIndexes.includes(index) && solutionCrowns.has(index); const dual = showDualRegions && session.status !== 'completed' && dualSet.has(index); const protectedCell = given || lost || frozen;
