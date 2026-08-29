@@ -18,7 +18,7 @@
     "e2e": "playwright test",
     "puzzles:build": "node --experimental-strip-types scripts/build-puzzle-pool.ts",
     "puzzles:benchmark": "node --experimental-strip-types scripts/benchmark-puzzle-pool.ts",
-    "puzzles:enumerate": "node --experimental-strip-types scripts/enumerate-puzzle-candidates.ts",
+    "puzzles:enumerate": "node --experimental-strip-types scripts/enumerate-puzzle-candidates-v2.ts",
     "puzzles:bundle": "node --experimental-strip-types scripts/build-bundled-campaign.ts"
   },
   "dependencies": {
