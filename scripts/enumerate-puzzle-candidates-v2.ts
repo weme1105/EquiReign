@@ -1,0 +1,1 @@
+// Placeholder for deterministic brute-force candidate enumeration; implementation follows in the next commit.
