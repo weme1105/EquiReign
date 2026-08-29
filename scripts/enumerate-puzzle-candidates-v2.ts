@@ -48,13 +48,12 @@ for (const size of sizes) {
     if (generated >= targetPerSolution * reducedSolutions.length) break;
     const remaining = targetPerSolution * reducedSolutions.length - generated;
     const result = enumerateRegionMaps(size, solution, Math.min(targetPerSolution, remaining), seen);
-    generated += result.maps.length;
     completeAssignmentsVisited += result.completeAssignmentsVisited;
 
     for (const regionMap of result.maps) {
-      const sizeIndex = candidates.filter((item) => item.size === size).length;
+      generated += 1;
       candidates.push({
-        id: `${size}x${size}-candidate-${String(sizeIndex + 1).padStart(7, '0')}`,
+        id: `${size}x${size}-candidate-${String(generated).padStart(7, '0')}`,
         size,
         solution,
         regionMap,
