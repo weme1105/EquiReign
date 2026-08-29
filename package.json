@@ -17,6 +17,7 @@
     "audit": "npm audit --audit-level=high",
     "e2e": "playwright test",
     "puzzles:build": "node --experimental-strip-types scripts/build-puzzle-pool.ts",
+    "puzzles:benchmark": "node --experimental-strip-types scripts/benchmark-puzzle-pool.ts",
     "puzzles:bundle": "node --experimental-strip-types scripts/build-bundled-campaign.ts"
   },
   "dependencies": {
