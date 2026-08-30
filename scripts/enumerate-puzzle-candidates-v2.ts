@@ -1,5 +1,5 @@
 import { appendFile, mkdir, writeFile } from 'node:fs/promises';
-import { dirname, resolve } from 'node:path';
+import { resolve } from 'node:path';
 import type { BoardSize } from '../src/game-core/types.ts';
 
 /** Phase 1 only: deterministic Queen enumeration + symmetry reduction + brute-force region enumeration.
