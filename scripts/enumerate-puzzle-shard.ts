@@ -1,4 +1,4 @@
-import { mkdir, appendFile, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
 type BoardSize = 6 | 7;
