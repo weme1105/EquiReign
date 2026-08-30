@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 type BoardSize = 6 | 7;
 
 const size = parseSize(arg('--size', '6'));
-const solutionIndex = positiveInteger(arg('--solution-index', '0'), 'solution-index');
+const solutionIndex = positiveInteger(arg('--solution-index', '1'), 'solution-index') - 1;
 const target = positiveInteger(arg('--target-per-solution', '1000000'), 'target-per-solution');
 const outputDir = resolve(arg('--output-dir', 'artifacts/puzzle-candidates'));
 const batchSize = positiveInteger(arg('--batch-size', '10000'), 'batch-size');
