@@ -27,9 +27,7 @@ jobs:
       matrix:
         include:
           - size: 6
-            solution_index: 0
-          - size: 7
-            solution_index: 0
+            solution_index: 1
           - size: 7
             solution_index: 1
           - size: 7
@@ -40,6 +38,8 @@ jobs:
             solution_index: 4
           - size: 7
             solution_index: 5
+          - size: 7
+            solution_index: 6
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
@@ -51,17 +51,14 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: Check selected size
-        if: ${{ !contains(format(',{0},', inputs.sizes), format(',{0},', matrix.size)) }}
-        run: echo "Skipping size ${{ matrix.size }}"
       - name: Enumerate solution shard
-        if: ${{ contains(format(',{0},', inputs.sizes), format(',{0},', matrix.size)) && (inputs.solution_indices == '' || contains(format(',{0},', inputs.solution_indices), format(',{0},', matrix.solution_index + 1))) }}
-        run: npm run puzzles:enumerate-shard -- --size ${{ matrix.size }} --solution-index ${{ matrix.solution_index }} --target-per-solution ${{ inputs.target_per_solution }} --batch-size ${{ inputs.batch_size }} --output-dir artifacts/puzzle-candidates
+        if: ${{ contains(format(',{0},', inputs.sizes), format(',{0},', matrix.size)) && (inputs.solution_indices == '' || contains(format(',{0},', inputs.solution_indices), format(',{0},', matrix.solution_index))) }}
+        run: npm run puzzles:enumerate-shard -- --size ${{ matrix.size }} --solution-index $(( ${{ matrix.solution_index }} - 1 )) --target-per-solution ${{ inputs.target_per_solution }} --batch-size ${{ inputs.batch_size }} --output-dir artifacts/puzzle-candidates
       - name: Upload solution shard
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: puzzle-candidates-${{ matrix.size }}-solution-${{ matrix.solution_index + 1 }}-${{ github.run_number }}
+          name: puzzle-candidates-${{ matrix.size }}-solution-${{ matrix.solution_index }}-${{ github.run_number }}
           path: artifacts/puzzle-candidates/${{ matrix.size }}x${{ matrix.size }}/
           if-no-files-found: ignore
           retention-days: 7
