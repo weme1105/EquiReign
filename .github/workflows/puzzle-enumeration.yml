@@ -53,7 +53,7 @@ jobs:
       - run: npm ci
       - name: Enumerate solution shard
         if: ${{ contains(format(',{0},', inputs.sizes), format(',{0},', matrix.size)) && (inputs.solution_indices == '' || contains(format(',{0},', inputs.solution_indices), format(',{0},', matrix.solution_index))) }}
-        run: npm run puzzles:enumerate-shard -- --size ${{ matrix.size }} --solution-index $(( ${{ matrix.solution_index }} - 1 )) --target-per-solution ${{ inputs.target_per_solution }} --batch-size ${{ inputs.batch_size }} --output-dir artifacts/puzzle-candidates
+        run: npm run puzzles:enumerate-shard -- --size ${{ matrix.size }} --solution-index ${{ matrix.solution_index }} --target-per-solution ${{ inputs.target_per_solution }} --batch-size ${{ inputs.batch_size }} --output-dir artifacts/puzzle-candidates
       - name: Upload solution shard
         if: always()
         uses: actions/upload-artifact@v4
