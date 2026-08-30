@@ -159,9 +159,8 @@ function enumerateRegionMaps(size: number, solution: readonly number[], target: 
   };
   const connected = (region: Set<number>): boolean => {
     if (region.size === 0) return false;
-    const iterator = region.values().next();
-    if (iterator.done) return false;
-    const start = iterator.value;
+    const start = region.values().next().value;
+    if (start === undefined) return false;
     const queue = [start]; const visited = new Set<number>([start]);
     for (let cursor = 0; cursor < queue.length; cursor += 1) {
       for (const next of neighbors(queue[cursor]!)) if (region.has(next) && !visited.has(next)) { visited.add(next); queue.push(next); }
