@@ -11,6 +11,10 @@ on:
         description: 'Candidate artifact name to analyze'
         required: true
         default: 'puzzle-candidates-6-solution-1-5'
+      max_candidates:
+        description: 'Maximum candidates to analyze (10,000 for first test; 0 = all)'
+        required: true
+        default: '10000'
       output_name:
         description: 'Analysis output artifact name'
         required: true
@@ -48,7 +52,9 @@ jobs:
           ARTIFACT_NAME: ${{ inputs.artifact_name }}
         run: gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$ARTIFACT_NAME" --dir candidates
       - name: Analyze candidates
-        run: npm run puzzles:analyze -- --input candidates --output analysis.jsonl
+        env:
+          MAX_CANDIDATES: ${{ inputs.max_candidates }}
+        run: npm run puzzles:analyze -- --input candidates --output analysis.jsonl --max-candidates "$MAX_CANDIDATES"
       - name: Upload analysis
         uses: actions/upload-artifact@v4
         with:
