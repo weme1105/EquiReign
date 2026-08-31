@@ -1,22 +1,34 @@
-import { readFileSync, writeFileSync } from 'node:fs';
-import { globSync } from 'glob';
-
+import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { countSolutions, analyzeSolutions } from '../src/game-core/solver.ts';
 
 type Candidate = { id: string; size: number; solution: number[]; regionMap: number[] };
 
-type Result = Candidate & { solutionCount: number; metrics: ReturnType<typeof analyzeSolutions> };
+function findJsonlFiles(root: string): string[] {
+  const result: string[] = [];
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) result.push(...findJsonlFiles(path));
+    else if (entry.isFile() && entry.name.endsWith('.jsonl')) result.push(path);
+  }
+  return result.sort();
+}
 
 const args = process.argv.slice(2);
-const input = args[args.indexOf('--input') + 1];
-const output = args[args.indexOf('--output') + 1] ?? 'puzzle-analysis.jsonl';
-if (!input) throw new Error('Usage: --input <jsonl-or-glob> [--output <jsonl>]');
+const inputIndex = args.indexOf('--input');
+const outputIndex = args.indexOf('--output');
+const input = inputIndex >= 0 ? args[inputIndex + 1] : undefined;
+const output = outputIndex >= 0 ? args[outputIndex + 1] ?? 'puzzle-analysis.jsonl' : 'puzzle-analysis.jsonl';
+if (!input) throw new Error('Usage: --input <directory> [--output <jsonl>]');
 
-const files = globSync(input, { nodir: true }).sort();
-if (!files.length) throw new Error(`No input files matched: ${input}`);
+const files = findJsonlFiles(input);
+if (!files.length) throw new Error(`No JSONL files found under: ${input}`);
 
-const out: string[] = [];
-let candidates = 0, unique = 0, unsolved = 0, multiple = 0;
+const outputLines: string[] = [];
+let candidates = 0;
+let unique = 0;
+let unsolved = 0;
+let multiple = 0;
 const started = performance.now();
 
 for (const file of files) {
@@ -29,18 +41,12 @@ for (const file of files) {
     if (solutionCount === 0) unsolved++;
     else if (solutionCount === 1) unique++;
     else multiple++;
-    out.push(JSON.stringify({ ...candidate, solutionCount, metrics } satisfies Result));
+    outputLines.push(JSON.stringify({ ...candidate, solutionCount, metrics }));
   }
 }
 
-writeFileSync(output, `${out.join('\n')}\n`);
-const elapsed = (performance.now() - started) / 1000;
-const summary = {
-  candidates, unique, unsolved, multiple,
-  uniqueRate: candidates ? unique / candidates : 0,
-  elapsedSeconds: elapsed,
-  candidatesPerSecond: elapsed ? candidates / elapsed : 0,
-  inputFiles: files.length,
-};
+writeFileSync(output, `${outputLines.join('\n')}\n`);
+const elapsedSeconds = (performance.now() - started) / 1000;
+const summary = { candidates, unique, unsolved, multiple, uniqueRate: candidates ? unique / candidates : 0, elapsedSeconds, candidatesPerSecond: elapsedSeconds ? candidates / elapsedSeconds : 0, inputFiles: files.length };
 writeFileSync(`${output}.summary.json`, `${JSON.stringify(summary, null, 2)}\n`);
 console.log(JSON.stringify(summary, null, 2));
