@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { countSolutions, analyzeSolutions } from '../src/game-core/solver.ts';
+import type { BoardSnapshot } from '../src/game-core/types.ts';
 
 type Candidate = { id: string; size: number; solution: number[]; regionMap: number[] };
 
@@ -35,9 +36,14 @@ for (const file of files) {
   for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
     if (!line.trim()) continue;
     const candidate = JSON.parse(line) as Candidate;
+    const board: BoardSnapshot = {
+      size: candidate.size,
+      regionMap: candidate.regionMap,
+      cells: Array.from({ length: candidate.size * candidate.size }, () => 'empty'),
+    };
     candidates++;
-    const solutionCount = countSolutions(candidate.regionMap, candidate.size);
-    const metrics = analyzeSolutions(candidate.regionMap, candidate.size);
+    const solutionCount = countSolutions(board, 2);
+    const metrics = analyzeSolutions(board, 2);
     if (solutionCount === 0) unsolved++;
     else if (solutionCount === 1) unique++;
     else multiple++;
