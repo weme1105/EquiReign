@@ -18,9 +18,13 @@ function findJsonlFiles(root: string): string[] {
 const args = process.argv.slice(2);
 const inputIndex = args.indexOf('--input');
 const outputIndex = args.indexOf('--output');
+const maxIndex = args.indexOf('--max-candidates');
 const input = inputIndex >= 0 ? args[inputIndex + 1] : undefined;
 const output = outputIndex >= 0 ? args[outputIndex + 1] ?? 'puzzle-analysis.jsonl' : 'puzzle-analysis.jsonl';
-if (!input) throw new Error('Usage: --input <directory> [--output <jsonl>]');
+const maxCandidatesRaw = maxIndex >= 0 ? args[maxIndex + 1] : '0';
+const maxCandidates = Number(maxCandidatesRaw);
+if (!input) throw new Error('Usage: --input <directory> [--output <jsonl>] [--max-candidates <number>]');
+if (!Number.isInteger(maxCandidates) || maxCandidates < 0) throw new Error('--max-candidates must be a non-negative integer; 0 means all');
 
 const files = findJsonlFiles(input);
 if (!files.length) throw new Error(`No JSONL files found under: ${input}`);
@@ -32,9 +36,10 @@ let unsolved = 0;
 let multiple = 0;
 const started = performance.now();
 
-for (const file of files) {
+outer: for (const file of files) {
   for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
     if (!line.trim()) continue;
+    if (maxCandidates > 0 && candidates >= maxCandidates) break outer;
     const candidate = JSON.parse(line) as Candidate;
     const board: BoardSnapshot = {
       size: candidate.size,
@@ -53,6 +58,6 @@ for (const file of files) {
 
 writeFileSync(output, `${outputLines.join('\n')}\n`);
 const elapsedSeconds = (performance.now() - started) / 1000;
-const summary = { candidates, unique, unsolved, multiple, uniqueRate: candidates ? unique / candidates : 0, elapsedSeconds, candidatesPerSecond: elapsedSeconds ? candidates / elapsedSeconds : 0, inputFiles: files.length };
+const summary = { candidates, unique, unsolved, multiple, uniqueRate: candidates ? unique / candidates : 0, elapsedSeconds, candidatesPerSecond: elapsedSeconds ? candidates / elapsedSeconds : 0, inputFiles: files.length, maxCandidates };
 writeFileSync(`${output}.summary.json`, `${JSON.stringify(summary, null, 2)}\n`);
 console.log(JSON.stringify(summary, null, 2));
