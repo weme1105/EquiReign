@@ -1,0 +1,42 @@
+name: Puzzle Analysis
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_name:
+        description: 'Candidate artifact name to analyze'
+        required: true
+        default: 'puzzle-candidates-6-solution-1-5'
+      output_name:
+        description: 'Analysis output artifact name'
+        required: true
+        default: 'puzzle-analysis'
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Download candidate artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact_name }}
+          path: candidates
+      - name: Analyze candidates
+        run: |
+          npm run puzzles:analyze -- --input 'candidates/**/*.jsonl' --output analysis.jsonl
+      - name: Upload analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.output_name }}
+          path: |
+            analysis.jsonl
+            analysis.jsonl.summary.json
