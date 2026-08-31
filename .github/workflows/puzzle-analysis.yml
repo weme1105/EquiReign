@@ -3,6 +3,10 @@ name: Puzzle Analysis
 on:
   workflow_dispatch:
     inputs:
+      enumeration_run_number:
+        description: 'Puzzle Enumeration run number (for example 5)'
+        required: true
+        default: '5'
       artifact_name:
         description: 'Candidate artifact name to analyze'
         required: true
@@ -16,6 +20,9 @@ jobs:
   analyze:
     runs-on: ubuntu-latest
     timeout-minutes: 360
+    permissions:
+      actions: read
+      contents: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,14 +32,23 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Download candidate artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ inputs.artifact_name }}
-          path: candidates
-      - name: Analyze candidates
+      - name: Resolve enumeration run
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_NUMBER: ${{ inputs.enumeration_run_number }}
         run: |
-          npm run puzzles:analyze -- --input 'candidates/**/*.jsonl' --output analysis.jsonl
+          RUN_ID=$(gh run list --workflow puzzle-enumeration.yml --limit 50 --json databaseId,number --jq ".[] | select(.number == ($RUN_NUMBER | tonumber)) | .databaseId" | head -n 1)
+          test -n "$RUN_ID"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+      - name: Download candidate artifact from enumeration run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.resolve.outputs.run_id }}
+          ARTIFACT_NAME: ${{ inputs.artifact_name }}
+        run: gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$ARTIFACT_NAME" --dir candidates
+      - name: Analyze candidates
+        run: npm run puzzles:analyze -- --input candidates --output analysis.jsonl
       - name: Upload analysis
         uses: actions/upload-artifact@v4
         with:
