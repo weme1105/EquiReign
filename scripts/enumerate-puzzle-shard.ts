@@ -22,9 +22,12 @@ const manifestPath = `${prefix}.report.json`;
 const started = performance.now();
 let generated = 0;
 let completeAssignmentsVisited = 0;
+let rejectedBySingletonLimit = 0;
 let part = 0;
 let buffer: string[] = [];
-const regionMap = Array<number>(size * size).fill(-1);
+const totalCells = size * size;
+const singletonRegionLimit = Math.ceil(totalCells * 0.01);
+const regionMap = Array<number>(totalCells).fill(-1);
 const queenCells = new Set<number>();
 for (let row = 0; row < size; row += 1) {
   const index = row * size + solution[row]!;
@@ -44,6 +47,10 @@ const visit = async (index: number): Promise<void> => {
   if (generated >= target) return;
   if (index === regionMap.length) {
     completeAssignmentsVisited += 1;
+    if (countSingletonRegions(regionMap) > singletonRegionLimit) {
+      rejectedBySingletonLimit += 1;
+      return;
+    }
     const candidate = {
       id: `${size}x${size}-s${String(solutionIndex + 1).padStart(3, '0')}-c${String(generated + 1).padStart(8, '0')}`,
       size,
@@ -69,8 +76,9 @@ const visit = async (index: number): Promise<void> => {
 await visit(0);
 await flush();
 
+const elapsedMs = performance.now() - started;
 const report = {
-  version: 1,
+  version: 2,
   phase: 'enumerate-candidate-shard',
   size,
   solutionIndex: solutionIndex + 1,
@@ -80,9 +88,12 @@ const report = {
   targetPerSolution: target,
   candidates: generated,
   completeAssignmentsVisited,
+  rejectedBySingletonLimit,
+  singletonRegionLimit,
+  singletonRegionPolicy: 'ceil(totalCells * 1%) as an upper bound',
   batchSize,
-  elapsedMs: performance.now() - started,
-  elapsedSeconds: (performance.now() - started) / 1000,
+  elapsedMs,
+  elapsedSeconds: elapsedMs / 1000,
 };
 await writeFile(manifestPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
 console.log(JSON.stringify(report));
@@ -132,6 +143,14 @@ function symmetryVariants(solution: readonly number[], n: number): number[][] {
     for (let r = 0; r < n; r += 1) { const [nr, nc] = transform(r, solution[r]!); out[nr!] = nc!; }
     return out;
   });
+}
+
+function countSingletonRegions(map: readonly number[]): number {
+  const counts = new Map<number, number>();
+  for (const region of map) counts.set(region, (counts.get(region) ?? 0) + 1);
+  let singletonCount = 0;
+  for (const count of counts.values()) if (count === 1) singletonCount += 1;
+  return singletonCount;
 }
 
 function canonicalRegionMap(map: readonly number[]): number[] {
