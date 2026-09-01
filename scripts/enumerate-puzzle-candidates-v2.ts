@@ -5,6 +5,7 @@ import type { BoardSize } from '../src/game-core/types.ts';
 /** Phase 1 only: deterministic Queen enumeration + symmetry reduction + brute-force region enumeration.
  * No solver, uniqueness check, connectivity validation, or difficulty classification.
  * Each symmetry-reduced Queen solution is an independent resumable shard.
+ * Singleton regions are allowed, but capped at ceil(total board cells * 1%).
  */
 const size = positiveInteger(arg('--size', '6'), 'size') as BoardSize;
 const target = positiveInteger(arg('--target-per-solution', '1000000'), 'target-per-solution');
@@ -24,7 +25,7 @@ await writeFile(outputPath, '', 'utf8');
 
 const result = await enumerateRegionMaps(size, solution, target, batchSize, outputPath);
 const report = {
-  version: 4,
+  version: 5,
   phase: 'enumerate-candidates',
   size,
   allSolutions: allSolutions.length,
@@ -34,12 +35,15 @@ const report = {
   batchSize,
   candidates: result.candidates,
   completeAssignmentsVisited: result.completeAssignmentsVisited,
+  rejectedBySingletonLimit: result.rejectedBySingletonLimit,
+  singletonRegionLimit: result.singletonRegionLimit,
+  singletonRegionPolicy: 'ceil(totalCells * 1%) as an upper bound',
   elapsedMs: performance.now() - started,
-  policy: { randomGeneration: false, solverDuringGeneration: false, uniquenessCheck: 'deferred', difficultyClassification: 'deferred', regionConnectivityCheck: 'deferred' },
+  policy: { randomGeneration: false, solverDuringGeneration: false, uniquenessCheck: 'deferred', difficultyClassification: 'deferred', regionConnectivityCheck: 'deferred', singletonRegionLimit: `ceil(${size * size} * 1%)` },
   outputPath,
 };
 await writeFile(resolve(sizeDir, `solution-${String(solutionIndex + 1).padStart(3, '0')}.report.json`), `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-process.stdout.write(`${size}x${size} solution ${solutionIndex + 1}/${reduced.length}: ${result.candidates} candidates; ${result.completeAssignmentsVisited} complete assignments; ${(report.elapsedMs / 1000).toFixed(2)}s; ${outputPath}\n`);
+process.stdout.write(`${size}x${size} solution ${solutionIndex + 1}/${reduced.length}: ${result.candidates} candidates; ${result.completeAssignmentsVisited} complete assignments; ${result.rejectedBySingletonLimit} rejected by singleton limit; singleton limit ${result.singletonRegionLimit}; ${(report.elapsedMs / 1000).toFixed(2)}s; ${outputPath}\n`);
 
 function enumerateQueens(n: number): number[][] {
   const result: number[][] = [];
@@ -79,14 +83,17 @@ function symmetryVariants(solution: readonly number[], n: number): number[][] {
 }
 
 async function enumerateRegionMaps(n: number, solution: readonly number[], targetCount: number, batchSize: number, outputPath: string) {
-  const total = n * n; const regions = Array(total).fill(-1); const queens = new Set<number>();
+  const total = n * n;
+  const singletonRegionLimit = Math.ceil(total * 0.01);
+  const regions = Array(total).fill(-1); const queens = new Set<number>();
   for (let r = 0; r < n; r += 1) { const cell = r * n + solution[r]!; regions[cell] = r; queens.add(cell); }
-  let batch: string[] = []; let candidates = 0; let completeAssignmentsVisited = 0;
+  let batch: string[] = []; let candidates = 0; let completeAssignmentsVisited = 0; let rejectedBySingletonLimit = 0;
   const flush = async () => { if (!batch.length) return; await appendFile(outputPath, batch.join('\n') + '\n', 'utf8'); batch = []; };
   const visit = async (index: number): Promise<void> => {
     if (candidates >= targetCount) return;
     if (index === total) {
       completeAssignmentsVisited += 1;
+      if (countSingletonRegions(regions) > singletonRegionLimit) { rejectedBySingletonLimit += 1; return; }
       const regionMap = canonicalRegionMap(regions);
       candidates += 1;
       batch.push(JSON.stringify({ id: `${n}x${n}-solution-${String(solutionIndex + 1).padStart(3, '0')}-candidate-${String(candidates).padStart(9, '0')}`, size: n, solution, regionMap }));
@@ -102,7 +109,15 @@ async function enumerateRegionMaps(n: number, solution: readonly number[], targe
     regions[index] = -1;
   };
   await visit(0); await flush();
-  return { candidates, completeAssignmentsVisited };
+  return { candidates, completeAssignmentsVisited, rejectedBySingletonLimit, singletonRegionLimit };
+}
+
+function countSingletonRegions(regionMap: readonly number[]): number {
+  const counts = new Map<number, number>();
+  for (const region of regionMap) counts.set(region, (counts.get(region) ?? 0) + 1);
+  let singletonCount = 0;
+  for (const count of counts.values()) if (count === 1) singletonCount += 1;
+  return singletonCount;
 }
 
 function canonicalRegionMap(regionMap: readonly number[]): number[] {
