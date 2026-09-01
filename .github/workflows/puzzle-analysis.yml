@@ -1,0 +1,64 @@
+name: Puzzle Analysis
+
+on:
+  workflow_dispatch:
+    inputs:
+      enumeration_run_number:
+        description: 'Puzzle Enumeration run number (for example 5)'
+        required: true
+        default: '5'
+      artifact_name:
+        description: 'Candidate artifact name to analyze'
+        required: true
+        default: 'puzzle-candidates-6-solution-1-5'
+      max_candidates:
+        description: 'Maximum candidates to analyze (10,000 for first test; 0 = all)'
+        required: true
+        default: '10000'
+      output_name:
+        description: 'Analysis output artifact name'
+        required: true
+        default: 'puzzle-analysis'
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Resolve enumeration run
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_NUMBER: ${{ inputs.enumeration_run_number }}
+        run: |
+          RUN_ID=$(gh run list --workflow puzzle-enumeration.yml --limit 50 --json databaseId,number --jq ".[] | select(.number == ($RUN_NUMBER | tonumber)) | .databaseId" | head -n 1)
+          test -n "$RUN_ID"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+      - name: Download candidate artifact from enumeration run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.resolve.outputs.run_id }}
+          ARTIFACT_NAME: ${{ inputs.artifact_name }}
+        run: gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$ARTIFACT_NAME" --dir candidates
+      - name: Analyze candidates
+        env:
+          MAX_CANDIDATES: ${{ inputs.max_candidates }}
+        run: npm run puzzles:analyze -- --input candidates --output analysis.jsonl --max-candidates "$MAX_CANDIDATES"
+      - name: Upload analysis
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.output_name }}
+          path: |
+            analysis.jsonl
+            analysis.jsonl.summary.json
