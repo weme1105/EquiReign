@@ -1,0 +1,33 @@
+name: Puzzle Enumeration Validation
+
+on:
+  workflow_dispatch:
+    inputs:
+      size:
+        description: 'Board size'
+        required: true
+        default: '6'
+      solution_index:
+        description: 'Solution index'
+        required: true
+        default: '1'
+      candidate_count:
+        description: 'Number of candidates to generate'
+        required: true
+        default: '1000'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Run generator validation
+        run: npm run puzzles:enumerate-shard -- --size "${{ inputs.size }}" --solution-index "${{ inputs.solution_index }}" --candidate-count "${{ inputs.candidate_count }}" --validate
