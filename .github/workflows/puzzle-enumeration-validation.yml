@@ -8,11 +8,11 @@ on:
         required: true
         default: '6'
       solution_index:
-        description: 'Solution index'
+        description: 'Symmetry-reduced solution index'
         required: true
         default: '1'
-      candidate_count:
-        description: 'Number of candidates to validate'
+      validation_count:
+        description: 'Small candidate count used for validation'
         required: true
         default: '1000'
 
@@ -29,5 +29,33 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - name: Run generator validation
-        run: npm run puzzles:enumerate-shard -- --size "${{ inputs.size }}" --solution-index "${{ inputs.solution_index }}" --candidate-count "${{ inputs.candidate_count }}" --validate
+      - name: Generate validation candidates
+        run: npm run puzzles:enumerate-shard -- --size "${{ inputs.size }}" --solution-index "${{ inputs.solution_index }}" --target-per-solution "${{ inputs.validation_count }}" --output-dir validation-candidates
+      - name: Validate singleton-region constraint
+        run: node --experimental-strip-types scripts/validate-puzzle-candidates.ts --input-dir validation-candidates
+      - name: Upload validation evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: puzzle-enumeration-validation-${{ inputs.size }}-s${{ inputs.solution_index }}
+          path: validation-candidates
+
+  enumerate-million:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Generate new 1,000,000 candidate pool
+        run: npm run puzzles:enumerate-shard -- --size "${{ inputs.size }}" --solution-index "${{ inputs.solution_index }}" --target-per-solution 1000000 --output-dir million-candidates
+      - name: Upload new million-candidate pool
+        uses: actions/upload-artifact@v4
+        with:
+          name: puzzle-candidates-${{ inputs.size }}-solution-${{ inputs.solution_index }}-million-v2
+          path: million-candidates
