@@ -1,20 +1,6 @@
-import type { Difficulty } from './types.ts';
+import type { Difficulty, PuzzleVariants } from './types.ts';
 
 export type SpecialCellKind = 'frozen' | 'lost' | 'dual';
-
-export interface DualRegionCell {
-  readonly index: number;
-  readonly regions: readonly [number, number];
-}
-
-export interface PuzzleVariants {
-  /** Cells hidden until the frozen-cell rule reveals them. */
-  readonly frozenCellIndexes: readonly number[];
-  /** Cells removed/hidden by the lost-cell rule. */
-  readonly lostCellIndexes: readonly number[];
-  /** Cells whose final region is resolved between exactly two region candidates. */
-  readonly dualRegionCells: readonly DualRegionCell[];
-}
 
 export const EMPTY_PUZZLE_VARIANTS: PuzzleVariants = {
   frozenCellIndexes: [],
