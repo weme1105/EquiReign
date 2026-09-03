@@ -23,6 +23,7 @@ const started = performance.now();
 let generated = 0;
 let completeAssignmentsVisited = 0;
 let rejectedBySingletonLimit = 0;
+let rejectedByConnectivity = 0;
 let part = 0;
 let buffer: string[] = [];
 const totalCells = size * size;
@@ -49,6 +50,10 @@ const visit = async (index: number): Promise<void> => {
     completeAssignmentsVisited += 1;
     if (countSingletonRegions(regionMap) > singletonRegionLimit) {
       rejectedBySingletonLimit += 1;
+      return;
+    }
+    if (!areAllRegionsConnected(regionMap, size)) {
+      rejectedByConnectivity += 1;
       return;
     }
     const candidate = {
@@ -78,7 +83,7 @@ await flush();
 
 const elapsedMs = performance.now() - started;
 const report = {
-  version: 2,
+  version: 3,
   phase: 'enumerate-candidate-shard',
   size,
   solutionIndex: solutionIndex + 1,
@@ -89,8 +94,10 @@ const report = {
   candidates: generated,
   completeAssignmentsVisited,
   rejectedBySingletonLimit,
+  rejectedByConnectivity,
   singletonRegionLimit,
   singletonRegionPolicy: 'ceil(totalCells * 1%) as an upper bound',
+  regionConnectivityPolicy: 'every region must form one orthogonally connected component',
   batchSize,
   elapsedMs,
   elapsedSeconds: elapsedMs / 1000,
@@ -151,6 +158,35 @@ function countSingletonRegions(map: readonly number[]): number {
   let singletonCount = 0;
   for (const count of counts.values()) if (count === 1) singletonCount += 1;
   return singletonCount;
+}
+
+function areAllRegionsConnected(map: readonly number[], n: number): boolean {
+  for (let region = 0; region < n; region += 1) {
+    const cells = [] as number[];
+    for (let index = 0; index < map.length; index += 1) if (map[index] === region) cells.push(index);
+    if (!cells.length) return false;
+    const visited = new Set<number>([cells[0]!]);
+    const queue = [cells[0]!];
+    for (let cursor = 0; cursor < queue.length; cursor += 1) {
+      const index = queue[cursor]!;
+      const row = Math.floor(index / n);
+      const col = index % n;
+      const neighbors = [
+        row > 0 ? index - n : -1,
+        row + 1 < n ? index + n : -1,
+        col > 0 ? index - 1 : -1,
+        col + 1 < n ? index + 1 : -1,
+      ];
+      for (const neighbor of neighbors) {
+        if (neighbor >= 0 && map[neighbor] === region && !visited.has(neighbor)) {
+          visited.add(neighbor);
+          queue.push(neighbor);
+        }
+      }
+    }
+    if (visited.size !== cells.length) return false;
+  }
+  return true;
 }
 
 function canonicalRegionMap(map: readonly number[]): number[] {
