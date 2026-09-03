@@ -1,5 +1,4 @@
-import { readFile } from 'node:fs/promises';
-import { readdir } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
 const inputDir = resolve(arg('--input-dir', 'artifacts/puzzle-candidates'));
@@ -9,6 +8,7 @@ if (!files.length) throw new Error(`No JSONL candidate files found under ${input
 let candidates = 0;
 let invalid = 0;
 let maxSingletons = 0;
+let disconnectedRegions = 0;
 const bySize = new Map<number, number>();
 
 for (const relative of files) {
@@ -31,12 +31,53 @@ for (const relative of files) {
     maxSingletons = Math.max(maxSingletons, singletonCount);
     bySize.set(size, Math.max(bySize.get(size) ?? 0, singletonCount));
     if (singletonCount > limit) invalid += 1;
+    if (!areAllRegionsConnected(regionMap, size)) {
+      disconnectedRegions += 1;
+      invalid += 1;
+    }
   }
 }
 
-const result = { candidates, invalid, maxSingletons, maxSingletonsBySize: Object.fromEntries([...bySize].map(([size, count]) => [size, count])), inputDir };
+const result = {
+  candidates,
+  invalid,
+  maxSingletons,
+  maxSingletonsBySize: Object.fromEntries([...bySize].map(([size, count]) => [size, count])),
+  disconnectedRegions,
+  regionConnectivityPolicy: 'every region must form one orthogonally connected component',
+  inputDir,
+};
 console.log(JSON.stringify(result, null, 2));
 if (invalid > 0 || candidates === 0) process.exit(1);
+
+function areAllRegionsConnected(map: readonly number[], n: number): boolean {
+  for (let region = 0; region < n; region += 1) {
+    const cells: number[] = [];
+    for (let index = 0; index < map.length; index += 1) if (map[index] === region) cells.push(index);
+    if (!cells.length) return false;
+    const visited = new Set<number>([cells[0]!]);
+    const queue = [cells[0]!];
+    for (let cursor = 0; cursor < queue.length; cursor += 1) {
+      const index = queue[cursor]!;
+      const row = Math.floor(index / n);
+      const col = index % n;
+      const neighbors = [
+        row > 0 ? index - n : -1,
+        row + 1 < n ? index + n : -1,
+        col > 0 ? index - 1 : -1,
+        col + 1 < n ? index + 1 : -1,
+      ];
+      for (const neighbor of neighbors) {
+        if (neighbor >= 0 && map[neighbor] === region && !visited.has(neighbor)) {
+          visited.add(neighbor);
+          queue.push(neighbor);
+        }
+      }
+    }
+    if (visited.size !== cells.length) return false;
+  }
+  return true;
+}
 
 function arg(name: string, fallback: string): string {
   const index = process.argv.indexOf(name);
