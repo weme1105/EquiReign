@@ -5,6 +5,17 @@ export type GameStatus = 'ready' | 'playing' | 'completed';
 
 export interface Position { readonly row: number; readonly column: number }
 
+export interface DualRegionCell {
+  readonly index: number;
+  readonly regions: readonly [number, number];
+}
+
+export interface PuzzleVariants {
+  readonly frozenCellIndexes: readonly number[];
+  readonly lostCellIndexes: readonly number[];
+  readonly dualRegionCells: readonly DualRegionCell[];
+}
+
 export interface PuzzleDefinition {
   readonly id: string;
   readonly difficulty: Difficulty;
@@ -13,6 +24,8 @@ export interface PuzzleDefinition {
   readonly regionMap: readonly number[];
   /** Fixed queens are puzzle metadata, never a distinct cell state. */
   readonly givenQueens: readonly Position[];
+  /** Optional special-cell layer; omitted means a plain/base puzzle. */
+  readonly variants?: PuzzleVariants;
 }
 
 export interface BoardSnapshot {
