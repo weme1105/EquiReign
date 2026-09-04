@@ -3,11 +3,8 @@ import type { BoardSize, Difficulty } from './types.ts';
 export type CampaignStage = Difficulty | 'infinite';
 
 export interface PlayerProgress {
-  /** Highest campaign level completed. Level 1 is available when this is zero. */
   readonly completedCampaignLevel: number;
-  /** Successful clears for every independently tracked challenge combination. */
   readonly challengeSuccessCounts: Readonly<Record<string, number>>;
-  /** Immutable first-success results. Replays never overwrite an existing key. */
   readonly firstClearResults: Readonly<Record<string, FirstClearResult>>;
 }
 
@@ -41,33 +38,38 @@ export function createPlayerProgress(): PlayerProgress {
   return { completedCampaignLevel: 0, challengeSuccessCounts: {}, firstClearResults: {} };
 }
 
+/** Base progression band. It is monotonic by 200-level stage and is not the final puzzle difficulty. */
 export function campaignStage(level: number): CampaignStage {
   assertLevel(level);
   if (level > CAMPAIGN_FINITE_LEVELS) return 'infinite';
   return DIFFICULTY_ORDER[Math.floor((level - 1) / CAMPAIGN_LEVELS_PER_STAGE)]!;
 }
 
+/**
+ * Final campaign difficulty. The stage provides the upward trend, while a deterministic
+ * one-tier variance allows adjacent stages to overlap and prevents size from determining difficulty.
+ */
 export function campaignDifficulty(level: number): Difficulty {
   const stage = campaignStage(level);
-  if (stage !== 'infinite') return stage;
-  return 'king';
+  if (stage === 'infinite') return 'king';
+  const center = DIFFICULTY_ORDER.indexOf(stage);
+  const mixed = Math.imul(level ^ 0x6d2b79f5, 0x9e3779b1) >>> 0;
+  const roll = mixed % 100;
+  const offset = roll < 15 ? -1 : roll >= 90 ? 1 : 0;
+  return DIFFICULTY_ORDER[Math.max(0, Math.min(DIFFICULTY_ORDER.length - 1, center + offset))]!;
 }
 
-/**
- * Campaign size is independently randomized across all standard sizes.
- * The same level still resolves deterministically so every player sees the same puzzle slot.
- * Difficulty progression is handled separately from board size.
- */
+/** Campaign size is independently selected from all standard sizes, deterministically per level. */
 export function campaignBoardSize(level: number): BoardSize {
   assertLevel(level);
   const mixed = Math.imul(level ^ 0x9e3779b9, 0x85ebca6b) >>> 0;
   return BOARD_SIZE_ORDER[mixed % BOARD_SIZE_ORDER.length]!;
 }
 
-/** Stable one-based pool slot: the same campaign level maps to the same puzzle for every player. */
+/** Stable one-based slot within the actual campaign difficulty pool. */
 export function campaignPuzzleOrdinal(level: number): number {
   assertLevel(level);
-  const target = PUZZLE_POOL_TARGETS[campaignStage(level)];
+  const target = PUZZLE_POOL_TARGETS[campaignDifficulty(level)];
   const mixed = Math.imul(level ^ 0x7f4a7c15, 0x9e3779b1) >>> 0;
   return mixed % target + 1;
 }
@@ -106,7 +108,6 @@ export function recordFirstClear(progress: PlayerProgress, key: string, result: 
   return { ...progress, firstClearResults: { ...progress.firstClearResults, [key]: result } };
 }
 
-/** Resolves fixed or random challenge filters without coupling Domain logic to Math.random. */
 export function resolveChallengeSelection(request: {
   readonly difficulty: Difficulty | 'random';
   readonly size: BoardSize | 'random';
