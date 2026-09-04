@@ -9,13 +9,20 @@ export interface RankedSolverCost {
   readonly tier: Difficulty;
 }
 
-/** Rank only puzzles of the same board size; cross-size raw costs are not comparable. */
+/**
+ * Rank the complete candidate pool as one distribution.
+ * Board size is deliberately not a separate ranking bucket: solver effort is
+ * part of puzzle difficulty, so a smaller board can legitimately rank harder
+ * than a larger board when its constraint structure causes more search work.
+ */
 export function rankSolverCosts(items: readonly SolverMetrics[]): readonly RankedSolverCost[] {
   const nodeRanks = percentileRanks(items.map((item) => item.nodesVisited));
   const branchRanks = percentileRanks(items.map((item) => item.branchesTried));
   const backtrackRanks = percentileRanks(items.map((item) => item.backtracks));
   return items.map((metrics, index) => {
-    const nodePercentile = nodeRanks[index]!; const branchPercentile = branchRanks[index]!; const backtrackPercentile = backtrackRanks[index]!;
+    const nodePercentile = nodeRanks[index]!;
+    const branchPercentile = branchRanks[index]!;
+    const backtrackPercentile = backtrackRanks[index]!;
     const score = nodePercentile * .5 + branchPercentile * .3 + backtrackPercentile * .2;
     return { metrics, nodePercentile, branchPercentile, backtrackPercentile, score, tier: costTier(score) };
   });
@@ -35,7 +42,8 @@ function percentileRanks(values: readonly number[]): number[] {
   if (values.length === 1) return [50];
   const sorted = [...values].sort((a, b) => a - b);
   return values.map((value) => {
-    const first = sorted.indexOf(value); const last = sorted.lastIndexOf(value);
+    const first = sorted.indexOf(value);
+    const last = sorted.lastIndexOf(value);
     return ((first + last) / 2) / (values.length - 1) * 100;
   });
 }
