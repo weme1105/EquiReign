@@ -1,5 +1,0 @@
-P0-7 Unique Solution
-- Region connectivity validated
-- Base solver uniqueness cap = 2
-- Zero/multiple solutions rejected
-- Solver metrics collected
