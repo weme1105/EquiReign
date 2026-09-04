@@ -23,16 +23,17 @@ export interface LevelSelection {
   readonly replayAllowed: true;
 }
 
-/** Percentiles are calculated independently inside each board size. */
+/**
+ * Difficulty is one global distribution across the complete pool.
+ * Size remains an independent campaign axis, so cross-size comparisons are intentional.
+ */
 export function rankPuzzlePool(candidates: readonly PuzzlePoolCandidate[]): readonly RankedPuzzleCandidate[] {
-  const output: RankedPuzzleCandidate[] = [];
-  const sizes = [...new Set(candidates.map((candidate) => candidate.size))].sort((a, b) => a - b);
-  for (const size of sizes) {
-    const sameSize = candidates.filter((candidate) => candidate.size === size);
-    const ranked = rankSolverCosts(sameSize.map((candidate) => candidate.solverMetrics));
-    sameSize.forEach((candidate, index) => output.push({ ...candidate, costScore: ranked[index]!.score, costTier: ranked[index]!.tier }));
-  }
-  return output;
+  const ranked = rankSolverCosts(candidates.map((candidate) => candidate.solverMetrics));
+  return candidates.map((candidate, index) => ({
+    ...candidate,
+    costScore: ranked[index]!.score,
+    costTier: ranked[index]!.tier,
+  }));
 }
 
 /**
