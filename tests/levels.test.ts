@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rankPuzzlePool } from '../src/game-core/levels.ts';
-import { BOARD_SIZE_ORDER, campaignBoardSize } from '../src/game-core/progression.ts';
+import { BOARD_SIZE_ORDER, campaignBoardSize, campaignDifficulty, campaignStage } from '../src/game-core/progression.ts';
 
 const metrics = (nodesVisited: number, branchesTried = nodesVisited, backtracks = nodesVisited) => ({
   nodesVisited,
@@ -16,6 +16,20 @@ test('campaign uses standard sizes independently from difficulty', () => {
 
   const adjacentSizes = Array.from({ length: 20 }, (_, index) => campaignBoardSize(index + 1));
   assert.ok(adjacentSizes.some((size, index) => index > 0 && size !== adjacentSizes[index - 1]));
+});
+
+test('campaign difficulty trends upward while allowing adjacent-tier overlap', () => {
+  assert.equal(campaignStage(1), 'beginner');
+  assert.equal(campaignStage(200), 'beginner');
+  assert.equal(campaignStage(201), 'intermediate');
+  assert.equal(campaignStage(1000), 'king');
+
+  const firstStage = new Set(Array.from({ length: 200 }, (_, index) => campaignDifficulty(index + 1)));
+  const secondStage = new Set(Array.from({ length: 200 }, (_, index) => campaignDifficulty(index + 201)));
+  assert.ok(firstStage.has('beginner'));
+  assert.ok(firstStage.has('intermediate'));
+  assert.ok(secondStage.has('intermediate'));
+  assert.ok(secondStage.has('advanced'));
 });
 
 test('difficulty ranking is global rather than partitioned by board size', () => {
