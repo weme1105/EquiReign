@@ -26,6 +26,7 @@ export const CAMPAIGN_LEVELS_PER_STAGE = 200;
 export const CAMPAIGN_FINITE_LEVELS = 1_000;
 export const CHALLENGE_UNLOCK_LEVEL = 200;
 export const DIFFICULTY_ORDER: readonly Difficulty[] = ['beginner', 'intermediate', 'advanced', 'expert', 'king'];
+/** Standard campaign board sizes. Difficulty is intentionally independent from size. */
 export const BOARD_SIZE_ORDER: readonly BoardSize[] = [6, 7, 8, 9, 10, 11, 12];
 export const PUZZLE_POOL_TARGETS: Readonly<Record<CampaignStage, number>> = {
   beginner: 100,
@@ -52,13 +53,13 @@ export function campaignDifficulty(level: number): Difficulty {
   return 'king';
 }
 
-/** Beginner introduces sizes gradually; later stages use a stable level-based shuffle. */
+/**
+ * Campaign size is independently randomized across all standard sizes.
+ * The same level still resolves deterministically so every player sees the same puzzle slot.
+ * Difficulty progression is handled separately from board size.
+ */
 export function campaignBoardSize(level: number): BoardSize {
   assertLevel(level);
-  if (level <= CAMPAIGN_LEVELS_PER_STAGE) {
-    const index = Math.floor((level - 1) * BOARD_SIZE_ORDER.length / CAMPAIGN_LEVELS_PER_STAGE);
-    return BOARD_SIZE_ORDER[Math.min(index, BOARD_SIZE_ORDER.length - 1)]!;
-  }
   const mixed = Math.imul(level ^ 0x9e3779b9, 0x85ebca6b) >>> 0;
   return BOARD_SIZE_ORDER[mixed % BOARD_SIZE_ORDER.length]!;
 }
