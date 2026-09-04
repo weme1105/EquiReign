@@ -1,5 +1,7 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
+import { analyzeSolutions, extractFirstSolution } from '../src/game-core/solver.ts';
+import type { BoardSnapshot } from '../src/game-core/types.ts';
 
 const inputDir = resolve(arg('--input-dir', 'artifacts/puzzle-candidates'));
 const files = (await readdir(inputDir, { recursive: true })).filter((file) => String(file).endsWith('.jsonl'));
@@ -9,7 +11,15 @@ let candidates = 0;
 let invalid = 0;
 let maxSingletons = 0;
 let disconnectedRegions = 0;
-const bySize = new Map<number, number>();
+let zeroSolutions = 0;
+let uniqueSolutions = 0;
+let multipleSolutions = 0;
+let solutionMismatches = 0;
+let solverNodesVisited = 0;
+let solverBranchesTried = 0;
+let solverBacktracks = 0;
+let solverMemoHits = 0;
+const bySize = new Map<number, { candidates: number; unique: number; zero: number; multiple: number; solutionMismatches: number }>();
 
 for (const relative of files) {
   const text = await readFile(join(inputDir, String(relative)), 'utf8');
@@ -24,15 +34,48 @@ for (const relative of files) {
       invalid += 1;
       continue;
     }
+    if (solution.some((column) => !Number.isInteger(column) || column < 0 || column >= size)) {
+      invalid += 1;
+      continue;
+    }
     const limit = Math.ceil(size * size * 0.01);
     const counts = new Map<number, number>();
     for (const region of regionMap) counts.set(region, (counts.get(region) ?? 0) + 1);
     const singletonCount = [...counts.values()].filter((count) => count === 1).length;
     maxSingletons = Math.max(maxSingletons, singletonCount);
-    bySize.set(size, Math.max(bySize.get(size) ?? 0, singletonCount));
-    if (singletonCount > limit) invalid += 1;
+    const sizeStats = bySize.get(size) ?? { candidates: 0, unique: 0, zero: 0, multiple: 0, solutionMismatches: 0 };
+    sizeStats.candidates += 1;
+    bySize.set(size, sizeStats);
+    if (singletonCount > limit) { invalid += 1; continue; }
     if (!areAllRegionsConnected(regionMap, size)) {
       disconnectedRegions += 1;
+      invalid += 1;
+      continue;
+    }
+
+    const board: BoardSnapshot = { size, regionMap, cells: Array(size * size).fill('empty') };
+    const analysis = analyzeSolutions(board, 2);
+    solverNodesVisited += analysis.metrics.nodesVisited;
+    solverBranchesTried += analysis.metrics.branchesTried;
+    solverBacktracks += analysis.metrics.backtracks;
+    solverMemoHits += analysis.metrics.memoHits;
+    if (analysis.solutionCount === 0) {
+      zeroSolutions += 1;
+      sizeStats.zero += 1;
+      invalid += 1;
+    } else if (analysis.solutionCount === 1) {
+      uniqueSolutions += 1;
+      sizeStats.unique += 1;
+      const resolved = extractFirstSolution(board);
+      const resolvedColumns = resolved?.map(({ column }) => column) ?? null;
+      if (!resolvedColumns || !resolvedColumns.every((column, row) => column === solution[row])) {
+        solutionMismatches += 1;
+        sizeStats.solutionMismatches += 1;
+        invalid += 1;
+      }
+    } else {
+      multipleSolutions += 1;
+      sizeStats.multiple += 1;
       invalid += 1;
     }
   }
@@ -41,10 +84,17 @@ for (const relative of files) {
 const result = {
   candidates,
   invalid,
+  validUniqueCandidates: uniqueSolutions - solutionMismatches,
+  zeroSolutions,
+  multipleSolutions,
+  solutionMismatches,
   maxSingletons,
-  maxSingletonsBySize: Object.fromEntries([...bySize].map(([size, count]) => [size, count])),
+  solutionStatsBySize: Object.fromEntries([...bySize].map(([size, stats]) => [size, stats])),
   disconnectedRegions,
+  solverMetrics: { nodesVisited: solverNodesVisited, branchesTried: solverBranchesTried, backtracks: solverBacktracks, memoHits: solverMemoHits },
   regionConnectivityPolicy: 'every region must form one orthogonally connected component',
+  uniquenessPolicy: 'exactly one solution under row, column, region, and 8-neighbor constraints',
+  storedSolutionPolicy: 'candidate.solution must match the solver-resolved queen column for every row',
   inputDir,
 };
 console.log(JSON.stringify(result, null, 2));
@@ -61,18 +111,8 @@ function areAllRegionsConnected(map: readonly number[], n: number): boolean {
       const index = queue[cursor]!;
       const row = Math.floor(index / n);
       const col = index % n;
-      const neighbors = [
-        row > 0 ? index - n : -1,
-        row + 1 < n ? index + n : -1,
-        col > 0 ? index - 1 : -1,
-        col + 1 < n ? index + 1 : -1,
-      ];
-      for (const neighbor of neighbors) {
-        if (neighbor >= 0 && map[neighbor] === region && !visited.has(neighbor)) {
-          visited.add(neighbor);
-          queue.push(neighbor);
-        }
-      }
+      const neighbors = [row > 0 ? index - n : -1, row + 1 < n ? index + n : -1, col > 0 ? index - 1 : -1, col + 1 < n ? index + 1 : -1];
+      for (const neighbor of neighbors) if (neighbor >= 0 && map[neighbor] === region && !visited.has(neighbor)) { visited.add(neighbor); queue.push(neighbor); }
     }
     if (visited.size !== cells.length) return false;
   }
