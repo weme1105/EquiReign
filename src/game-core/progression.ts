@@ -3,8 +3,11 @@ import type { BoardSize, Difficulty } from './types.ts';
 export type CampaignStage = Difficulty | 'infinite';
 
 export interface PlayerProgress {
+  /** Highest campaign level completed. Level 1 is available when this is zero. */
   readonly completedCampaignLevel: number;
+  /** Successful clears for every independently tracked challenge combination. */
   readonly challengeSuccessCounts: Readonly<Record<string, number>>;
+  /** Immutable first-success results. Replays never overwrite an existing key. */
   readonly firstClearResults: Readonly<Record<string, FirstClearResult>>;
 }
 
@@ -62,8 +65,10 @@ export function campaignDifficulty(level: number): Difficulty {
 /** Campaign size is independently selected from all standard sizes, deterministically per level. */
 export function campaignBoardSize(level: number): BoardSize {
   assertLevel(level);
-  const mixed = Math.imul(level ^ 0x9e3779b9, 0x85ebca6b) >>> 0;
-  return BOARD_SIZE_ORDER[mixed % BOARD_SIZE_ORDER.length]!;
+  // A full-period affine sequence gives every standard size equal representation over 7 levels
+  // while keeping the mapping deterministic and visibly independent from difficulty stages.
+  const index = (level * 3 + 4) % BOARD_SIZE_ORDER.length;
+  return BOARD_SIZE_ORDER[index]!;
 }
 
 /** Stable one-based slot within the actual campaign difficulty pool. */
@@ -108,6 +113,7 @@ export function recordFirstClear(progress: PlayerProgress, key: string, result: 
   return { ...progress, firstClearResults: { ...progress.firstClearResults, [key]: result } };
 }
 
+/** Resolves fixed or random challenge filters without coupling Domain logic to Math.random. */
 export function resolveChallengeSelection(request: {
   readonly difficulty: Difficulty | 'random';
   readonly size: BoardSize | 'random';
