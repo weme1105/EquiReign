@@ -20,6 +20,7 @@
     "puzzles:benchmark": "node --experimental-strip-types scripts/benchmark-puzzle-pool.ts",
     "puzzles:enumerate": "node --experimental-strip-types scripts/enumerate-puzzle-candidates-v2.ts",
     "puzzles:enumerate-shard": "node --experimental-strip-types scripts/enumerate-puzzle-shard.ts",
+    "puzzles:enumerate-nqueens": "node --experimental-strip-types scripts/enumerate-nqueens-6-12.ts",
     "puzzles:analyze": "node --experimental-strip-types scripts/analyze-puzzle-candidates.ts",
     "puzzles:bundle": "node --experimental-strip-types scripts/build-bundled-campaign.ts"
   },
@@ -34,15 +35,17 @@
     "react-dom": "19.2.3",
     "react-native": "0.86.2",
     "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "0.86.2",
+    "react-native-web": "~0.21.0",
     "react-native-screens": "4.27.0",
-    "react-native-web": "~0.21.0"
+    "react-native-safe-area-context": "~5.7.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
-    "@playwright/test": "^1.58.2",
-    "@types/node": "^24.10.0",
-    "eslint": "^9.39.2",
+    "@playwright/test": "^1.58.0",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.54.0"
+    "typescript-eslint": "^8.54.0",
+    "eslint": "^9.39.2",
+    "@types/node": "^24.10.0"
   }
 }
