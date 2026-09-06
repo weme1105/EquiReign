@@ -24,11 +24,13 @@ jobs:
           import { readFileSync } from 'node:fs';
           const data = JSON.parse(readFileSync('artifacts/nqueens/nqueens-6-12.json', 'utf8'));
           const expected = {6:4,7:40,8:92,9:352,10:724,11:2680,12:14200};
-          for (const row of data.boards) {
+          if (data.purpose !== 'complete-nqueens-enumeration') throw new Error('Unexpected dataset purpose');
+          for (const row of data.sizes) {
             if (row.solutionCount !== expected[row.size]) {
               throw new Error(`Unexpected ${row.size}x${row.size} count: ${row.solutionCount}`);
             }
           }
+          if (data.sizes.length !== 7) throw new Error('Expected sizes 6 through 12');
           NODE
       - uses: actions/upload-artifact@v4
         with:
