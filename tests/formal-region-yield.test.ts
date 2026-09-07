@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { enumerateNQueens } from '../src/game-core/nqueens.ts';
-import { growRegionsFromNQueensSolution } from '../src/game-core/nqueens-region-source.ts';
+import { growRegionsFromNQueensSolution, refineNQueensRegionCandidate } from '../src/game-core/nqueens-region-source.ts';
 import { validatePuzzleCandidate } from '../src/game-core/puzzle-candidate-validation.ts';
 
 for (const size of [6, 7] as const) {
@@ -16,7 +16,8 @@ for (const size of [6, 7] as const) {
 
     for (const solution of solutions) {
       for (let strategy = 0; strategy < strategies; strategy += 1) {
-        const candidate = growRegionsFromNQueensSolution(size, solution, strategy);
+        const grown = growRegionsFromNQueensSolution(size, solution, strategy);
+        const candidate = refineNQueensRegionCandidate(grown);
         uniqueMaps.add(candidate.regionMap.join(','));
         const result = validatePuzzleCandidate(candidate);
         if (result.valid) {
