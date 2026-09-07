@@ -1,0 +1,39 @@
+name: N-Queens Enumeration
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [develop, main]
+  workflow_dispatch:
+
+jobs:
+  enumerate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run puzzles:enumerate-nqueens
+      - name: Verify standard solution counts
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const data = JSON.parse(readFileSync('artifacts/nqueens/nqueens-6-12.json', 'utf8'));
+          const expected = {6:4,7:40,8:92,9:352,10:724,11:2680,12:14200};
+          if (data.purpose !== 'complete-nqueens-enumeration') throw new Error('Unexpected dataset purpose');
+          for (const row of data.sizes) {
+            if (row.solutionCount !== expected[row.size]) {
+              throw new Error(`Unexpected ${row.size}x${row.size} count: ${row.solutionCount}`);
+            }
+          }
+          if (data.sizes.length !== 7) throw new Error('Expected sizes 6 through 12');
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nqueens-6-12
+          path: artifacts/nqueens/nqueens-6-12.json
+          retention-days: 30
