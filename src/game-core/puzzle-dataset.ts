@@ -6,9 +6,11 @@ export interface DatasetShardSpec {
   readonly shardCount: number;
 }
 
+export type FormalPuzzleDatasetSource = 'nqueens-seeded-growth-v1';
+
 export interface FormalPuzzleDatasetRecord extends ValidatedPuzzleCandidate {
   readonly id: string;
-  readonly source: 'canonical-diagonal-growth-v1';
+  readonly source: FormalPuzzleDatasetSource;
   readonly sourceOrdinal: number;
 }
 
