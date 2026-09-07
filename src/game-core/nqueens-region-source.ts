@@ -1,4 +1,6 @@
-import type { BoardSize } from './types.ts';
+import { areAllRegionsConnected, singletonRegionLimit } from './puzzle-candidate-validation.ts';
+import { countSolutions, extractFirstSolution } from './solver.ts';
+import type { BoardSize, BoardSnapshot, Position } from './types.ts';
 
 export interface NQueensRegionGrowthCandidate {
   readonly size: BoardSize;
@@ -20,13 +22,7 @@ export function growRegionsFromNQueensSolution(
   solution: readonly number[],
   strategy: number,
 ): NQueensRegionGrowthCandidate {
-  if (solution.length !== size
-    || new Set(solution).size !== size
-    || solution.some((column) => !Number.isInteger(column) || column < 0 || column >= size)) {
-    throw new Error('solution must contain one distinct in-range column per row.');
-  }
-  if (!Number.isInteger(strategy) || strategy < 0) throw new Error('strategy must be a non-negative integer.');
-
+  validateInputs(size, solution, strategy);
   const regionMap = Array<number>(size * size).fill(-1);
   const regionSizes = Array<number>(size).fill(1);
   for (let region = 0; region < size; region += 1) regionMap[region * size + solution[region]!] = region;
@@ -39,6 +35,65 @@ export function growRegionsFromNQueensSolution(
   }
 
   return { size, solution: [...solution], regionMap, strategy };
+}
+
+/**
+ * Deterministically refines boundaries by repeatedly eliminating a concrete
+ * non-target solution while preserving the seeded target solution.
+ *
+ * A moved cell is never a target Queen seed. Each accepted move changes the
+ * Region of a Queen used by the current alternative solution, so that exact
+ * alternative becomes invalid. Connectivity and singleton limits are checked
+ * after every move. The search is bounded and may still return a multi-solution
+ * candidate; the formal validator remains the final admission gate.
+ */
+export function refineNQueensRegionCandidate(
+  candidate: NQueensRegionGrowthCandidate,
+  maxMoves = candidate.size * candidate.size * 2,
+): NQueensRegionGrowthCandidate {
+  const { size, solution, strategy } = candidate;
+  validateInputs(size, solution, strategy);
+  if (!Number.isInteger(maxMoves) || maxMoves < 0) throw new Error('maxMoves must be a non-negative integer.');
+
+  let regionMap = [...candidate.regionMap];
+  const seedIndexes = new Set(solution.map((column, row) => row * size + column));
+  const seen = new Set<string>([regionMap.join(',')]);
+
+  for (let move = 0; move < maxMoves; move += 1) {
+    const board = emptyBoard(size, regionMap);
+    if (countSolutions(board, 2) <= 1) break;
+    const alternative = findAlternativeSolution(board, solution);
+    if (!alternative) break;
+
+    const mutations: { index: number; region: number; order: number }[] = [];
+    for (const position of alternative) {
+      const index = position.row * size + position.column;
+      if (seedIndexes.has(index)) continue;
+      const currentRegion = regionMap[index]!;
+      for (const region of adjacentRegions(regionMap, index, size)) {
+        if (region === currentRegion) continue;
+        mutations.push({ index, region, order: stableMix(index, region, strategy + move * 131) });
+      }
+    }
+    mutations.sort((a, b) => a.order - b.order || a.index - b.index || a.region - b.region);
+
+    let accepted: number[] | null = null;
+    for (const mutation of mutations) {
+      const next = [...regionMap];
+      next[mutation.index] = mutation.region;
+      const key = next.join(',');
+      if (seen.has(key)) continue;
+      if (countSingletons(next, size) > singletonRegionLimit(size)) continue;
+      if (!areAllRegionsConnected(next, size)) continue;
+      accepted = next;
+      seen.add(key);
+      break;
+    }
+    if (!accepted) break;
+    regionMap = accepted;
+  }
+
+  return { ...candidate, regionMap };
 }
 
 interface GrowthChoice {
@@ -76,6 +131,26 @@ function chooseGrowth(
   return best;
 }
 
+function findAlternativeSolution(board: BoardSnapshot, target: readonly number[]): readonly Position[] | null {
+  for (let row = 0; row < board.size; row += 1) {
+    const cells = [...board.cells];
+    cells[row * board.size + target[row]!] = 'excluded';
+    const alternative = extractFirstSolution({ ...board, cells });
+    if (alternative) return alternative;
+  }
+  return null;
+}
+
+function emptyBoard(size: number, regionMap: readonly number[]): BoardSnapshot {
+  return { size, regionMap, cells: Array.from({ length: size * size }, () => 'empty') };
+}
+
+function countSingletons(regionMap: readonly number[], size: number): number {
+  const counts = Array<number>(size).fill(0);
+  for (const region of regionMap) counts[region] = counts[region]! + 1;
+  return counts.filter((count) => count === 1).length;
+}
+
 function adjacentRegions(regionMap: readonly number[], index: number, size: number): readonly number[] {
   const row = Math.floor(index / size);
   const column = index % size;
@@ -92,6 +167,15 @@ function compareScore(a: readonly number[], b: readonly number[]): number {
     if (a[index]! !== b[index]!) return a[index]! - b[index]!;
   }
   return a.length - b.length;
+}
+
+function validateInputs(size: number, solution: readonly number[], strategy: number): void {
+  if (solution.length !== size
+    || new Set(solution).size !== size
+    || solution.some((column) => !Number.isInteger(column) || column < 0 || column >= size)) {
+    throw new Error('solution must contain one distinct in-range column per row.');
+  }
+  if (!Number.isInteger(strategy) || strategy < 0) throw new Error('strategy must be a non-negative integer.');
 }
 
 function stableMix(index: number, region: number, strategy: number): number {

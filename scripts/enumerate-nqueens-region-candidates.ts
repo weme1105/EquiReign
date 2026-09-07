@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { enumerateNQueens } from '../src/game-core/nqueens.ts';
-import { growRegionsFromNQueensSolution } from '../src/game-core/nqueens-region-source.ts';
+import { growRegionsFromNQueensSolution, refineNQueensRegionCandidate } from '../src/game-core/nqueens-region-source.ts';
 import { assertDatasetShardSpec, type DatasetShardSpec } from '../src/game-core/puzzle-dataset.ts';
 import type { BoardSize } from '../src/game-core/types.ts';
 
@@ -26,12 +26,14 @@ for (const size of sizes) {
       const ordinal = sourceOrdinal;
       sourceOrdinal += 1;
       if (ordinal % shard.shardCount !== shard.shardIndex) continue;
-      const candidate = growRegionsFromNQueensSolution(size, solution, strategy);
+      const grown = growRegionsFromNQueensSolution(size, solution, strategy);
+      const candidate = refineNQueensRegionCandidate(grown);
       records.push(JSON.stringify({
         source: 'nqueens-seeded-growth-v1',
         sourceOrdinal: ordinal,
         nQueensSolution: solution,
         strategy,
+        refinement: 'alternative-elimination-v1',
         size,
         solution: candidate.solution,
         regionMap: candidate.regionMap,
@@ -48,6 +50,7 @@ await writeFile(outputPath, records.join('\n') + (records.length ? '\n' : ''), '
 console.log(JSON.stringify({
   purpose: 'bounded-deterministic-region-candidate-source',
   source: 'nqueens-seeded-growth-v1',
+  refinement: 'alternative-elimination-v1',
   coverage: 'all-standard-nqueens-solutions-times-configured-growth-strategies',
   strategiesPerSolution,
   shard,
