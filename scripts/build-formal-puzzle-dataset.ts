@@ -2,7 +2,7 @@ import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { validatePuzzleCandidate } from '../src/game-core/puzzle-candidate-validation.ts';
 import { assertDatasetShardSpec, belongsToDatasetShard, puzzleCandidateId, puzzleCandidateKey, type DatasetShardSpec, type FormalPuzzleDatasetManifest, type FormalPuzzleDatasetRecord } from '../src/game-core/puzzle-dataset.ts';
-import type { BoardSize, SolverMetrics } from '../src/game-core/types.ts';
+import type { BoardSize } from '../src/game-core/types.ts';
 
 interface CandidateEnvelope {
   readonly source?: string;
@@ -29,7 +29,7 @@ if (files.length === 0) throw new Error(`No JSONL candidate files found under ${
 const accepted: FormalPuzzleDatasetRecord[] = [];
 const seen = new Set<string>();
 let rejectedRecordCount = 0;
-const solverMetricTotals: SolverMetrics = { nodesVisited: 0, branchesTried: 0, backtracks: 0, memoHits: 0 };
+const solverMetricTotals = { nodesVisited: 0, branchesTried: 0, backtracks: 0, memoHits: 0 };
 
 for (const relative of files) {
   const text = await readFile(join(inputDir, relative), 'utf8');
