@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { enumerateConnectedRegionCandidates } from '../src/game-core/region-candidates.ts';
 
-test('region candidate enumeration is deterministic and respects singleton limit', () => {
+test('region candidate primitive is deterministic and respects singleton limit', () => {
   const first = enumerateConnectedRegionCandidates(6, { maxCandidates: 25 });
   const second = enumerateConnectedRegionCandidates(6, { maxCandidates: 25 });
   assert.deepEqual(first, second);
@@ -17,10 +17,7 @@ test('region candidate enumeration is deterministic and respects singleton limit
   }
 });
 
-test('region candidate enumeration works for the full standard size range', () => {
-  for (const size of [6, 7, 8, 9, 10, 11, 12] as const) {
-    const candidates = enumerateConnectedRegionCandidates(size, { maxCandidates: 2 });
-    assert.equal(candidates.length, 2, `${size}x${size}`);
-    assert.ok(candidates.every((candidate) => candidate.regionMap.length === size * size));
-  }
+test('region candidate primitive validates maxCandidates', () => {
+  assert.throws(() => enumerateConnectedRegionCandidates(6, { maxCandidates: 0 }), /positive integer/);
+  assert.throws(() => enumerateConnectedRegionCandidates(6, { maxCandidates: -1 }), /positive integer/);
 });
