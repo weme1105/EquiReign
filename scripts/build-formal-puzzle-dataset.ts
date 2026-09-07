@@ -36,7 +36,7 @@ for (const relative of files) {
   for (const line of text.split('\n')) {
     if (!line.trim()) continue;
     const parsed = JSON.parse(line) as CandidateEnvelope;
-    if (parsed.source !== 'canonical-diagonal-growth-v1'
+    if (parsed.source !== 'nqueens-seeded-growth-v1'
       || !Number.isInteger(parsed.sourceOrdinal)
       || !isBoardSize(parsed.size)
       || !Array.isArray(parsed.solution)
@@ -59,7 +59,7 @@ for (const relative of files) {
     const record: FormalPuzzleDatasetRecord = {
       ...validation.candidate,
       id: puzzleCandidateId(parsed.size, parsed.solution, parsed.regionMap),
-      source: 'canonical-diagonal-growth-v1',
+      source: 'nqueens-seeded-growth-v1',
       sourceOrdinal: parsed.sourceOrdinal!,
     };
     accepted.push(record);
