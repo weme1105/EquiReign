@@ -65,9 +65,9 @@ export function campaignDifficulty(level: number): Difficulty {
 /** Campaign size is independently selected from all standard sizes, deterministically per level. */
 export function campaignBoardSize(level: number): BoardSize {
   assertLevel(level);
-  // A full-period affine sequence gives every standard size equal representation over 7 levels
-  // while keeping the mapping deterministic and visibly independent from difficulty stages.
-  const index = (level * 3 + 4) % BOARD_SIZE_ORDER.length;
+  // A full-period affine sequence gives every standard size equal representation over 7 levels,
+  // keeps level 1 at 6x6, and preserves the established level 200 = 12x12 contract.
+  const index = (level * 2 + 5) % BOARD_SIZE_ORDER.length;
   return BOARD_SIZE_ORDER[index]!;
 }
 
