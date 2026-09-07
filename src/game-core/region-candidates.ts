@@ -18,8 +18,9 @@ export interface RegionEnumerationOptions {
  * completed region is connected. This is deliberately deterministic: the
  * candidate order is row-major and contains no RNG.
  *
- * This is a candidate-space primitive, not a uniqueness validator. Candidates
- * must still be checked by the game solver before entering the formal pool.
+ * This is a candidate-space primitive, not a complete enumeration of every
+ * legal Region Map, and not a uniqueness validator. Candidates must still be
+ * checked by the game solver before entering the formal pool.
  */
 export function enumerateConnectedRegionCandidates(
   size: BoardSize,
@@ -45,7 +46,7 @@ export function enumerateConnectedRegionCandidates(
       results.push({ size, regionMap: [...map] });
       return;
     }
-    if (map[index] !== -1) {
+    if (map[index]! !== -1) {
       visit(index + 1);
       return;
     }
@@ -67,15 +68,15 @@ function adjacentRegionLabels(map: readonly number[], index: number, size: numbe
   const row = Math.floor(index / size);
   const column = index % size;
   const labels = new Set<number>();
-  if (row > 0 && map[index - size] >= 0) labels.add(map[index - size]!);
-  if (row + 1 < size && map[index + size] >= 0) labels.add(map[index + size]!);
-  if (column > 0 && map[index - 1] >= 0) labels.add(map[index - 1]!);
-  if (column + 1 < size && map[index + 1] >= 0) labels.add(map[index + 1]!);
+  if (row > 0 && map[index - size]! >= 0) labels.add(map[index - size]!);
+  if (row + 1 < size && map[index + size]! >= 0) labels.add(map[index + size]!);
+  if (column > 0 && map[index - 1]! >= 0) labels.add(map[index - 1]!);
+  if (column + 1 < size && map[index + 1]! >= 0) labels.add(map[index + 1]!);
   return [...labels].sort((a, b) => a - b);
 }
 
 function countSingletonRegions(map: readonly number[], size: number): number {
   const counts = Array<number>(size).fill(0);
-  for (const region of map) if (region >= 0 && region < size) counts[region] += 1;
+  for (const region of map) if (region >= 0 && region < size) counts[region] = counts[region]! + 1;
   return counts.filter((count) => count === 1).length;
 }
