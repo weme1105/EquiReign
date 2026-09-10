@@ -17,6 +17,21 @@ For a row r with queen column c, deletion of row r can fail only when the reduce
 
 Every row of an irreducible solution must have at least one of these witnesses.
 
+### Regression validation of the witness criterion
+
+The two witness conditions are now encoded separately in `src/game-core/equireign-irreducible-experiment.ts` as research-only helpers. A regression test compares the witness result against direct row+column deletion and compression for every legal EquiReign placement and every possible deleted row for N=6 through N=9.
+
+Observed exhaustive results:
+
+| N | Legal placements | Witness/direct mismatches | Irreducible |
+|---:|---:|---:|---:|
+| 6 | 90 | 0 | 0 |
+| 7 | 646 | 0 | 0 |
+| 8 | 5,242 | 0 | 8 |
+| 9 | 47,622 | 0 | 0 |
+
+This regression validates the local obstruction model on the full solution spaces through 9×9. It strengthens confidence in the structural search implementation, but it is not by itself a proof of the 19×19 or 20×20 result.
+
 ## Exact structural search results
 
 The optimized independent search was run with D4 symmetry-breaking constraints. The symmetry constraints do not change whether an irreducible solution exists; they only avoid equivalent search branches.
