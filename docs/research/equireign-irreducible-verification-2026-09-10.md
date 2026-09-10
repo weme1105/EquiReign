@@ -43,11 +43,12 @@ Current optimizations are:
 - immediate rejection when a required witness has both endpoints already placed without the witness edge;
 - immediate rejection when exactly one endpoint remains but the used endpoint is no longer the tail;
 - **forced continuation:** when exactly one endpoint is the tail, the other endpoint is forced as the next column;
+- **forced-chain propagation:** repeatedly consume newly forced values until the state reaches a branching point, contradiction, or a full path;
 - optional D4 symmetry reduction for existence searches;
 - `--first=N` sharding by first-row column;
 - `--no-symmetry` mode for full, non-symmetry-reduced counts.
 
-The forced-continuation optimization is particularly effective because an unresolved midpoint witness with one endpoint at the current tail has exactly one possible next endpoint; there is no need to branch over unrelated candidates.
+The forced-chain optimization is particularly effective because an unresolved midpoint witness with one endpoint at the current tail has exactly one possible next endpoint; there is no need to branch over unrelated candidates. The current TypeScript research implementation has been locally cross-checked against the known exact family counts at N=8, 12 and 16, returning 8, 48 and 384 respectively. A full N=19 run also returns 0 irreducibles.
 
 ## Exact structural search results
 
@@ -59,7 +60,9 @@ An independent optimized C++ implementation of the same structural witness DFS w
 | 19 | 0 | ~2.5 s | exhaustive structural search |
 | 20 | 3,840 | ~19.0 s | exhaustive structural search; exactly matches the known family size |
 
-For N=20, the search visited the complete unsymmetrized structural tree and returned exactly 3,840 irreducibles. The known 4×4-block construction independently produces exactly 3,840 members, so there is no remaining count gap at 20×20 under the validated witness characterization.
+For N=20, the earlier search visited the complete unsymmetrized structural tree and returned exactly 3,840 irreducibles. A newer independent C++ forced-chain prototype reduces the structural states from about 101.1M to 54,990,336 and runtime from about 19.0 s to about 14.9 s, while still returning exactly 3,840. This optimization is research-only and has not been moved into production Game Core.
+
+The TypeScript port is materially slower than the optimized C++ prototype, but its exact-count regression at N=8/12/16 and exhaustive N=19 result match the established results. The C++ benchmark remains the performance reference while the TS implementation is used for repository-level reproducibility.
 
 The earlier symmetry-reduced search is substantially faster and is useful for existence checks. The unsymmetrized result is the stronger count check because it does not depend on orbit accounting.
 
@@ -112,5 +115,11 @@ The computational evidence now supports the stronger working statement:
 > Among the sizes exhaustively structurally searched through 20×20, irreducibles occur only when N is divisible by 4; at N=4k through k=5, the complete observed irreducible family is the 4×4-block construction with size 2^k × k!.
 
 This is still presented as a computational conclusion rather than a formal theorem for all N. In particular, a general proof for every future N has not been established.
+
+## Image-library work started
+
+A deterministic research/catalogue builder now exists at `scripts/build-irreducible-solution-image-library.ts`, exposed as `npm run puzzles:irreducible-images`. For N=20 it enumerates the complete `2^5 × 5! = 3,840` family, validates every generated permutation, emits a stable SHA-256-derived solution ID, and renders one SVG board image per solution plus a JSON manifest.
+
+The generated artwork is deliberately a **solution-board library**, not a claim that each image is already a unique playable region puzzle. Region-puzzle generation remains a separate pipeline because the current production generator supports 4..12 and uniqueness must be established independently for any region map.
 
 No production Game Core architecture was changed by this research.
