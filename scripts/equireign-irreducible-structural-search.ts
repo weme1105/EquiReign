@@ -4,23 +4,25 @@
  * The search works directly on the permutation p[row] = column.
  * Legal adjacency is |p[r] - p[r+1]| > 1.
  *
- * For a row whose queen is value c, deleting that row/column is obstructed iff:
- * - the values c-1 and c+1 occur in adjacent rows (value-midpoint witness), or
- * - the two neighboring row values become consecutive after compression.
+ * An irreducible placement must have a deletion obstruction for every row.
+ * Under the EquiReign adjacency rule, each obstruction is represented by a
+ * local witness: either values c-1 and c+1 are consecutive in the row path,
+ * or the two neighbors of c differ by exactly one. Endpoint rows can only
+ * use the first kind of witness.
  *
- * Under the legal-adjacency rule, the second condition is equivalent to the
- * two neighboring values differing by exactly one. Thus every value must be
- * covered by at least one witness edge (with endpoint exceptions handled at
- * the two ends of the row path).
- *
- * This is deliberately kept as a script instead of production Game Core.
+ * This script intentionally stays outside production Game Core.
  */
 
 const sizeArg = Number(process.argv.find((arg) => /^--size=\d+$/.test(arg))?.split('=')[1] ?? 19);
 const countAll = process.argv.includes('--count');
+const firstArg = process.argv.find((arg) => /^--first=\d+$/.test(arg));
+const firstFilter = firstArg === undefined ? undefined : Number(firstArg.split('=')[1]);
 
 if (!Number.isInteger(sizeArg) || sizeArg < 1 || sizeArg > 20) {
   throw new Error('--size must be an integer in 1..20');
+}
+if (firstFilter !== undefined && (!Number.isInteger(firstFilter) || firstFilter < 0 || firstFilter >= sizeArg)) {
+  throw new Error('--first must be an integer in 0..size-1');
 }
 
 interface SearchStats {
@@ -29,42 +31,58 @@ interface SearchStats {
   firstValues: readonly number[];
 }
 
-function search(size: number, enumerateAll: boolean): SearchStats {
+function search(size: number, enumerateAll: boolean, requestedFirst?: number): SearchStats {
   const path = Array<number>(size);
   const firstValues: number[] = [];
   let nodes = 0;
   let irreducible = 0;
 
-  const feasibleNeeds = (
+  // Candidate bitset: all columns except the two forbidden neighbours.
+  const legalNextMask = Array<number>(size).fill(0);
+  const allMask = (1 << size) - 1;
+  for (let value = 0; value < size; value += 1) {
+    let mask = allMask & ~(1 << value);
+    if (value > 0) mask &= ~(1 << (value - 1));
+    if (value + 1 < size) mask &= ~(1 << (value + 1));
+    legalNextMask[value] = mask;
+  }
+
+  // If an unresolved midpoint witness has exactly one endpoint already used,
+  // that endpoint MUST be the tail and the other endpoint MUST be the next
+  // value. Returning the forced value lets the DFS collapse those branches
+  // instead of merely rejecting them one level later.
+  const forcedCandidate = (
     needMask: number,
     witnessMask: number,
     usedMask: number,
     tail: number,
-  ): boolean => {
+  ): number | null => {
     let unresolved = needMask & ~witnessMask;
+    let forced = -1;
+
     while (unresolved !== 0) {
       const bit = unresolved & -unresolved;
-      const c = 31 - Math.clz32(bit);
+      const center = 31 - Math.clz32(bit);
       unresolved ^= bit;
 
-      if (c === 0 || c === size - 1) return false;
-      const requiredEndpoints = (1 << (c - 1)) | (1 << (c + 1));
-      const endpointCount = popcount(usedMask & requiredEndpoints);
+      if (center === 0 || center === size - 1) return -1;
 
-      if (endpointCount === 2) return false;
+      const endpoints = (1 << (center - 1)) | (1 << (center + 1));
+      const endpointCount = popcount(usedMask & endpoints);
+      if (endpointCount === 2) return -1;
 
       if (endpointCount === 1) {
-        // The remaining endpoint must be appended immediately. Checking
-        // compatibility here is stronger than merely requiring the used
-        // endpoint to be the tail.
-        if ((requiredEndpoints & (1 << tail)) === 0) return false;
-        const remainingEndpoint = (requiredEndpoints & ~(1 << tail)) !== 0
-          ? 31 - Math.clz32(requiredEndpoints & ~(1 << tail))
-          : -1;
-        if (remainingEndpoint < 0 || Math.abs(tail - remainingEndpoint) <= 1) return false;
+        if ((endpoints & (1 << tail)) === 0) return -1;
+        const remaining = endpoints & ~(1 << tail);
+        if (remaining === 0) return -1;
+        const remainingValue = 31 - Math.clz32(remaining);
+        if ((legalNextMask[tail] & (1 << remainingValue)) === 0) return -1;
+        if (forced >= 0 && forced !== remainingValue) return -1;
+        forced = remainingValue;
       }
     }
-    return true;
+
+    return forced >= 0 ? forced : null;
   };
 
   const visit = (
@@ -86,28 +104,32 @@ function search(size: number, enumerateAll: boolean): SearchStats {
       return;
     }
 
-    for (let candidate = 0; candidate < size; candidate += 1) {
-      if ((usedMask & (1 << candidate)) !== 0) continue;
-      if (Math.abs(previous - candidate) <= 1) continue;
+    const forced = forcedCandidate(needMask, witnessMask, usedMask, previous);
+    if (forced === -1) return;
 
-      // Transpose symmetry: p and p^{-1} are equivalent. Column reflection
-      // also preserves the problem. Once the first value f is fixed, the
-      // first coordinate in the four-element orbit is
-      //   min(f, size-1-f, pos(0), size-1-pos(0)).
-      // We only explore representatives with f <= all four values. Since
-      // pos(0) becomes known exactly when candidate 0 is placed, both
-      // transpose/reflection inequalities can be enforced incrementally.
+    let candidates = forced === null
+      ? legalNextMask[previous] & ~usedMask
+      : 1 << forced;
+
+    while (candidates !== 0) {
+      const candidateBit = candidates & -candidates;
+      candidates ^= candidateBit;
+      const candidate = 31 - Math.clz32(candidateBit);
+
+      // D4 symmetry breaking. If the first value is f, transposition maps it
+      // to position(0), and reflection maps each coordinate to size-1-x.
+      // Therefore a representative exists with
+      //   f <= position(0) <= size-1-f.
       const first = path[0]!;
       if (candidate === 0 && (depth < first || depth > size - 1 - first)) continue;
 
       let nextWitnessMask = witnessMask;
-      if (Math.abs(previous - candidate) === 2) {
+      if (candidate - previous === 2 || previous - candidate === 2) {
         const center = Math.min(previous, candidate) + 1;
         if (center > 0 && center < size - 1) nextWitnessMask |= 1 << center;
       }
 
       let nextNeedMask = needMask & ~nextWitnessMask;
-
       if (depth === 1) {
         if ((nextWitnessMask & (1 << first)) === 0) nextNeedMask |= 1 << first;
       } else {
@@ -117,33 +139,35 @@ function search(size: number, enumerateAll: boolean): SearchStats {
         }
       }
 
-      const nextUsedMask = usedMask | (1 << candidate);
-      if (!feasibleNeeds(nextNeedMask, nextWitnessMask, nextUsedMask, candidate)) continue;
-
+      const nextUsedMask = usedMask | candidateBit;
       path[depth] = candidate;
-      visit(
-        nextUsedMask,
-        nextWitnessMask,
-        nextNeedMask,
-        previous,
-        candidate,
-        depth + 1,
-      );
+
+      // The newly-created state may itself contain an impossible witness:
+      // for example, the second endpoint may now be behind the tail. This
+      // check also catches conflicting forced endpoints before recursion.
+      if (forcedCandidate(nextNeedMask, nextWitnessMask, nextUsedMask, candidate) !== -1) {
+        visit(
+          nextUsedMask,
+          nextWitnessMask,
+          nextNeedMask,
+          previous,
+          candidate,
+          depth + 1,
+        );
+      }
     }
   };
 
-  // Every D4 orbit has at least one representative satisfying the four-way
-  // first-coordinate minimum above. For a zero-result proof this symmetry
-  // break is complete; exact counting still requires a canonical tie-break
-  // if an orbit has equal minima.
-  for (let first = 0; first <= Math.floor((size - 1) / 2); first += 1) {
+  const minFirst = requestedFirst ?? 0;
+  const maxFirst = requestedFirst ?? Math.floor((size - 1) / 2);
+  for (let first = minFirst; first <= maxFirst; first += 1) {
     firstValues.push(first);
     path[0] = first;
     try {
       visit(1 << first, 0, 0, -1, first, 1);
     } catch (error) {
       if (error instanceof FoundSolution && !enumerateAll) {
-        console.log(JSON.stringify({ size, solution: error.solution, nodes }));
+        console.log(JSON.stringify({ size, solution: error.solution, nodes, first }));
         return { nodes, irreducible: 1, firstValues };
       }
       throw error;
@@ -169,5 +193,5 @@ function popcount(value: number): number {
   return count;
 }
 
-const result = search(sizeArg, countAll);
+const result = search(sizeArg, countAll, firstFilter);
 console.log(JSON.stringify(result));
