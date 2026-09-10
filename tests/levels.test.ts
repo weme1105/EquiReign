@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { rankPuzzlePool } from '../src/game-core/levels.ts';
-import { BOARD_SIZE_ORDER, campaignBoardSize, campaignDifficulty, campaignStage } from '../src/game-core/progression.ts';
+import { BOARD_SIZE_ORDER, CAMPAIGN_BOARD_SIZE_ORDER, campaignBoardSize, campaignDifficulty, campaignStage } from '../src/game-core/progression.ts';
 
 const metrics = (nodesVisited: number, branchesTried = nodesVisited, backtracks = nodesVisited) => ({
   nodesVisited,
@@ -10,9 +10,13 @@ const metrics = (nodesVisited: number, branchesTried = nodesVisited, backtracks 
   memoHits: 0,
 });
 
-test('campaign uses standard sizes independently from difficulty', () => {
-  const sizes = new Set(Array.from({ length: 100 }, (_, index) => campaignBoardSize(index + 1)));
-  assert.deepEqual([...sizes].sort((a, b) => a - b), [...BOARD_SIZE_ORDER]);
+test('runtime supports 6x6 through 20x20 while campaign currently stops at 16x16', () => {
+  assert.deepEqual([...BOARD_SIZE_ORDER], [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
+  assert.deepEqual([...CAMPAIGN_BOARD_SIZE_ORDER], [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
+
+  const sizes = new Set(Array.from({ length: 200 }, (_, index) => campaignBoardSize(index + 1)));
+  assert.deepEqual([...sizes].sort((a, b) => a - b), [...CAMPAIGN_BOARD_SIZE_ORDER]);
+  assert.ok(![...sizes].some((size) => size > 16));
 
   const adjacentSizes = Array.from({ length: 20 }, (_, index) => campaignBoardSize(index + 1));
   assert.ok(adjacentSizes.some((size, index) => index > 0 && size !== adjacentSizes[index - 1]));
