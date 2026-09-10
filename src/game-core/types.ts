@@ -1,5 +1,6 @@
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced' | 'expert' | 'king';
-export type BoardSize = 6 | 7 | 8 | 9 | 10 | 11 | 12;
+/** Supported board sizes for the full game/runtime. Campaign currently schedules sizes through 16; 17..20 are available to challenge/research pools. */
+export type BoardSize = 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17 | 18 | 19 | 20;
 export type CellState = 'empty' | 'excluded' | 'queen';
 export type GameStatus = 'ready' | 'playing' | 'completed';
 
