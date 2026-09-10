@@ -10,11 +10,12 @@
  * or the two neighbors of c differ by exactly one. Endpoint rows can only
  * use the first kind of witness.
  *
- * The DFS uses two important optimizations:
+ * The DFS uses three important optimizations:
  * - legal-next candidates are maintained as a precomputed bitset;
  * - if an unresolved midpoint witness has exactly one endpoint already used,
- *   that endpoint must be the current tail, so the other endpoint is forced as
- *   the next candidate.
+ *   that endpoint must be the current tail, so the other endpoint is forced;
+ * - forced values are propagated as a chain before branching, so a sequence of
+ *   uniquely implied values is explored without creating intermediate DFS nodes.
  *
  * By default a D4-safe symmetry reduction is used. `--no-symmetry` disables
  * it so that the returned irreducible count is the full count. `--first=N`
@@ -94,15 +95,76 @@ function search(size: number, enumerateAll: boolean, symmetryReduction: boolean,
     return forced >= 0 ? forced : null;
   };
 
-  const visit = (
-    usedMask: number,
-    witnessMask: number,
-    needMask: number,
-    previousPrevious: number,
-    previous: number,
-    depth: number,
-  ): void => {
+  interface State {
+    usedMask: number;
+    witnessMask: number;
+    needMask: number;
+    previousPrevious: number;
+    previous: number;
+    depth: number;
+  }
+
+  // Consume all currently forced values. The returned state is a fixed point:
+  // either no value is forced, a contradiction was found, or the path is full.
+  const propagateForcedChain = (state: State): State | null => {
+    let usedMask = state.usedMask;
+    let witnessMask = state.witnessMask;
+    let needMask = state.needMask;
+    let previousPrevious = state.previousPrevious;
+    let previous = state.previous;
+    let depth = state.depth;
+
+    while (depth < size) {
+      const forced = forcedCandidate(needMask, witnessMask, usedMask, previous);
+      if (forced === -1) return null;
+      if (forced === null) break;
+
+      const candidateBit = 1 << forced;
+      if ((usedMask & candidateBit) !== 0 || (legalNextMask[previous] & candidateBit) === 0) return null;
+
+      let nextWitnessMask = witnessMask;
+      if (Math.abs(candidate - previous) === 2) {
+        const center = Math.min(previous, forced) + 1;
+        if (center > 0 && center < size - 1) nextWitnessMask |= 1 << center;
+      }
+
+      let nextNeedMask = needMask & ~nextWitnessMask;
+      if (depth === 1) {
+        const first = path[0]!;
+        if ((nextWitnessMask & (1 << first)) === 0) nextNeedMask |= 1 << first;
+      } else {
+        const center = previous;
+        if (Math.abs(previousPrevious - forced) !== 1 && (nextWitnessMask & (1 << center)) === 0) {
+          nextNeedMask |= 1 << center;
+        }
+      }
+
+      path[depth] = forced;
+      usedMask |= candidateBit;
+      witnessMask = nextWitnessMask;
+      needMask = nextNeedMask;
+      previousPrevious = previous;
+      previous = forced;
+      depth += 1;
+    }
+
+    return { usedMask, witnessMask, needMask, previousPrevious, previous, depth };
+  };
+
+  const visit = (initialState: State): void => {
     nodes += 1;
+
+    const state = propagateForcedChain(initialState);
+    if (state === null) return;
+
+    const {
+      usedMask,
+      witnessMask,
+      needMask,
+      previousPrevious,
+      previous,
+      depth,
+    } = state;
 
     if (depth === size) {
       const finalNeed = needMask | (1 << path[0]!) | (1 << path[size - 1]!);
@@ -113,16 +175,11 @@ function search(size: number, enumerateAll: boolean, symmetryReduction: boolean,
       return;
     }
 
-    const forced = forcedCandidate(needMask, witnessMask, usedMask, previous);
-    if (forced === -1) return;
-
-    let candidates = forced === null
-      ? legalNextMask[previous] & ~usedMask
-      : 1 << forced;
-
-    while (candidates !== 0) {
-      const candidateBit = candidates & -candidates;
-      candidates ^= candidateBit;
+    const candidates = legalNextMask[previous] & ~usedMask;
+    let remainingCandidates = candidates;
+    while (remainingCandidates !== 0) {
+      const candidateBit = remainingCandidates & -remainingCandidates;
+      remainingCandidates ^= candidateBit;
       const candidate = 31 - Math.clz32(candidateBit);
 
       if (symmetryReduction) {
@@ -134,7 +191,7 @@ function search(size: number, enumerateAll: boolean, symmetryReduction: boolean,
       }
 
       let nextWitnessMask = witnessMask;
-      if (candidate - previous === 2 || previous - candidate === 2) {
+      if (Math.abs(candidate - previous) === 2) {
         const center = Math.min(previous, candidate) + 1;
         if (center > 0 && center < size - 1) nextWitnessMask |= 1 << center;
       }
@@ -150,29 +207,37 @@ function search(size: number, enumerateAll: boolean, symmetryReduction: boolean,
         }
       }
 
-      const nextUsedMask = usedMask | candidateBit;
       path[depth] = candidate;
 
-      if (forcedCandidate(nextNeedMask, nextWitnessMask, nextUsedMask, candidate) !== -1) {
-        visit(
-          nextUsedMask,
-          nextWitnessMask,
-          nextNeedMask,
-          previous,
-          candidate,
-          depth + 1,
-        );
+      const nextState: State = {
+        usedMask: usedMask | candidateBit,
+        witnessMask: nextWitnessMask,
+        needMask: nextNeedMask,
+        previousPrevious: previous,
+        previous: candidate,
+        depth: depth + 1,
+      };
+
+      if (forcedCandidate(nextNeedMask, nextWitnessMask, nextState.usedMask, candidate) !== -1) {
+        visit(nextState);
       }
     }
   };
 
-  const minFirst = requestedFirst ?? (symmetryReduction ? 0 : 0);
+  const minFirst = requestedFirst ?? 0;
   const maxFirst = requestedFirst ?? (symmetryReduction ? Math.floor((size - 1) / 2) : size - 1);
   for (let first = minFirst; first <= maxFirst; first += 1) {
     firstValues.push(first);
     path[0] = first;
     try {
-      visit(1 << first, 0, 0, -1, first, 1);
+      visit({
+        usedMask: 1 << first,
+        witnessMask: 0,
+        needMask: 0,
+        previousPrevious: -1,
+        previous: first,
+        depth: 1,
+      });
     } catch (error) {
       if (error instanceof FoundSolution && !enumerateAll) {
         console.log(JSON.stringify({ size, solution: error.solution, nodes, first }));
