@@ -26,8 +26,10 @@ export const CAMPAIGN_LEVELS_PER_STAGE = 200;
 export const CAMPAIGN_FINITE_LEVELS = 1_000;
 export const CHALLENGE_UNLOCK_LEVEL = 200;
 export const DIFFICULTY_ORDER: readonly Difficulty[] = ['beginner', 'intermediate', 'advanced', 'expert', 'king'];
-/** Campaign sizes stop at 16 for now; 17..20 remain available to the full runtime/challenge pool. */
-export const BOARD_SIZE_ORDER: readonly BoardSize[] = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+/** All supported runtime/challenge sizes. */
+export const BOARD_SIZE_ORDER: readonly BoardSize[] = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+/** Campaign deliberately stops at 16x16 until the larger puzzle pool is ready. */
+export const CAMPAIGN_BOARD_SIZE_ORDER: readonly BoardSize[] = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
 export const PUZZLE_POOL_TARGETS: Readonly<Record<CampaignStage, number>> = {
   beginner: 100,
   intermediate: 200,
@@ -67,8 +69,8 @@ export function campaignBoardSize(level: number): BoardSize {
   assertLevel(level);
   // A full-period affine sequence gives every campaign size equal representation over 11 levels,
   // keeps level 1 at 6x6, and avoids coupling size to difficulty.
-  const index = (level * 6 + 5) % BOARD_SIZE_ORDER.length;
-  return BOARD_SIZE_ORDER[index]!;
+  const index = (level * 6 + 5) % CAMPAIGN_BOARD_SIZE_ORDER.length;
+  return CAMPAIGN_BOARD_SIZE_ORDER[index]!;
 }
 
 /** Stable one-based slot within the actual campaign difficulty pool. */
