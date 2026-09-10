@@ -10,11 +10,22 @@
  * or the two neighbors of c differ by exactly one. Endpoint rows can only
  * use the first kind of witness.
  *
- * This script intentionally stays outside production Game Core.
+ * The DFS uses two important optimizations:
+ * - legal-next candidates are maintained as a precomputed bitset;
+ * - if an unresolved midpoint witness has exactly one endpoint already used,
+ *   that endpoint must be the current tail, so the other endpoint is forced as
+ *   the next candidate.
+ *
+ * By default a D4-safe symmetry reduction is used. `--no-symmetry` disables
+ * it so that the returned irreducible count is the full count. `--first=N`
+ * can be used to shard the search by first-row column.
+ *
+ * This deliberately stays outside production Game Core.
  */
 
 const sizeArg = Number(process.argv.find((arg) => /^--size=\d+$/.test(arg))?.split('=')[1] ?? 19);
 const countAll = process.argv.includes('--count');
+const noSymmetry = process.argv.includes('--no-symmetry');
 const firstArg = process.argv.find((arg) => /^--first=\d+$/.test(arg));
 const firstFilter = firstArg === undefined ? undefined : Number(firstArg.split('=')[1]);
 
@@ -31,13 +42,12 @@ interface SearchStats {
   firstValues: readonly number[];
 }
 
-function search(size: number, enumerateAll: boolean, requestedFirst?: number): SearchStats {
+function search(size: number, enumerateAll: boolean, symmetryReduction: boolean, requestedFirst?: number): SearchStats {
   const path = Array<number>(size);
   const firstValues: number[] = [];
   let nodes = 0;
   let irreducible = 0;
 
-  // Candidate bitset: all columns except the two forbidden neighbours.
   const legalNextMask = Array<number>(size).fill(0);
   const allMask = (1 << size) - 1;
   for (let value = 0; value < size; value += 1) {
@@ -47,10 +57,8 @@ function search(size: number, enumerateAll: boolean, requestedFirst?: number): S
     legalNextMask[value] = mask;
   }
 
-  // If an unresolved midpoint witness has exactly one endpoint already used,
-  // that endpoint MUST be the tail and the other endpoint MUST be the next
-  // value. Returning the forced value lets the DFS collapse those branches
-  // instead of merely rejecting them one level later.
+  // Returns -1 for an impossible state, null when no witness is currently
+  // forced, or the unique next value that must be appended.
   const forcedCandidate = (
     needMask: number,
     witnessMask: number,
@@ -68,13 +76,14 @@ function search(size: number, enumerateAll: boolean, requestedFirst?: number): S
       if (center === 0 || center === size - 1) return -1;
 
       const endpoints = (1 << (center - 1)) | (1 << (center + 1));
-      const endpointCount = popcount(usedMask & endpoints);
-      if (endpointCount === 2) return -1;
+      const usedEndpoints = usedMask & endpoints;
+      if (usedEndpoints === endpoints) return -1;
 
-      if (endpointCount === 1) {
-        if ((endpoints & (1 << tail)) === 0) return -1;
-        const remaining = endpoints & ~(1 << tail);
-        if (remaining === 0) return -1;
+      if (usedEndpoints !== 0) {
+        // Exactly one endpoint is used. It has to be the tail, and the other
+        // endpoint must be a legal immediate successor.
+        if ((usedEndpoints & (1 << tail)) === 0) return -1;
+        const remaining = endpoints & ~usedEndpoints;
         const remainingValue = 31 - Math.clz32(remaining);
         if ((legalNextMask[tail] & (1 << remainingValue)) === 0) return -1;
         if (forced >= 0 && forced !== remainingValue) return -1;
@@ -116,12 +125,13 @@ function search(size: number, enumerateAll: boolean, requestedFirst?: number): S
       candidates ^= candidateBit;
       const candidate = 31 - Math.clz32(candidateBit);
 
-      // D4 symmetry breaking. If the first value is f, transposition maps it
-      // to position(0), and reflection maps each coordinate to size-1-x.
-      // Therefore a representative exists with
-      //   f <= position(0) <= size-1-f.
-      const first = path[0]!;
-      if (candidate === 0 && (depth < first || depth > size - 1 - first)) continue;
+      if (symmetryReduction) {
+        // D4 symmetry breaking. If the first value is f, transposition maps
+        // it to position(0), and reflection maps each coordinate to size-1-x.
+        // A representative exists with f <= position(0) <= size-1-f.
+        const first = path[0]!;
+        if (candidate === 0 && (depth < first || depth > size - 1 - first)) continue;
+      }
 
       let nextWitnessMask = witnessMask;
       if (candidate - previous === 2 || previous - candidate === 2) {
@@ -131,6 +141,7 @@ function search(size: number, enumerateAll: boolean, requestedFirst?: number): S
 
       let nextNeedMask = needMask & ~nextWitnessMask;
       if (depth === 1) {
+        const first = path[0]!;
         if ((nextWitnessMask & (1 << first)) === 0) nextNeedMask |= 1 << first;
       } else {
         const center = previous;
@@ -142,9 +153,6 @@ function search(size: number, enumerateAll: boolean, requestedFirst?: number): S
       const nextUsedMask = usedMask | candidateBit;
       path[depth] = candidate;
 
-      // The newly-created state may itself contain an impossible witness:
-      // for example, the second endpoint may now be behind the tail. This
-      // check also catches conflicting forced endpoints before recursion.
       if (forcedCandidate(nextNeedMask, nextWitnessMask, nextUsedMask, candidate) !== -1) {
         visit(
           nextUsedMask,
@@ -158,8 +166,8 @@ function search(size: number, enumerateAll: boolean, requestedFirst?: number): S
     }
   };
 
-  const minFirst = requestedFirst ?? 0;
-  const maxFirst = requestedFirst ?? Math.floor((size - 1) / 2);
+  const minFirst = requestedFirst ?? (symmetryReduction ? 0 : 0);
+  const maxFirst = requestedFirst ?? (symmetryReduction ? Math.floor((size - 1) / 2) : size - 1);
   for (let first = minFirst; first <= maxFirst; first += 1) {
     firstValues.push(first);
     path[0] = first;
@@ -183,15 +191,5 @@ class FoundSolution extends Error {
   }
 }
 
-function popcount(value: number): number {
-  let count = 0;
-  let remaining = value >>> 0;
-  while (remaining !== 0) {
-    remaining &= remaining - 1;
-    count += 1;
-  }
-  return count;
-}
-
-const result = search(sizeArg, countAll, firstFilter);
+const result = search(sizeArg, countAll, !noSymmetry, firstFilter);
 console.log(JSON.stringify(result));
