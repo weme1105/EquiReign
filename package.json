@@ -23,16 +23,16 @@
     "puzzles:enumerate-nqueens": "node --experimental-strip-types scripts/enumerate-nqueens-6-12.ts",
     "puzzles:enumerate-nqueens-regions": "node --experimental-strip-types scripts/enumerate-nqueens-region-candidates.ts",
     "puzzles:analyze": "node --experimental-strip-types scripts/analyze-puzzle-candidates.ts",
+    "puzzles:bundle": "node --experimental-strip-types scripts/build-bundled-campaign.ts",
     "puzzles:formal-build": "node --experimental-strip-types scripts/build-formal-puzzle-dataset.ts",
     "puzzles:formal-rank": "node --experimental-strip-types scripts/rank-formal-puzzle-dataset.ts",
     "puzzles:rank": "node --experimental-strip-types scripts/rank-puzzle-candidates.ts",
-    "puzzles:bundle": "node --experimental-strip-types scripts/build-bundled-campaign.ts",
     "puzzles:irreducible-images": "node --experimental-strip-types scripts/build-irreducible-solution-image-library.ts"
   },
   "dependencies": {
     "expo": "~57.0.9",
     "expo-file-system": "~57.0.5",
-    "expo-router": "~57.0.5",
+    "expo-router": "~57.0.9",
     "expo-secure-store": "~57.0.1",
     "expo-sqlite": "~57.0.1",
     "expo-status-bar": "~57.0.1",
@@ -45,10 +45,10 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
-    "@playwright/test": "^1.58.0",
+    "@playwright/test": "^1.58.2",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.54.0",
-    "eslint": "^9.39.0",
+    "eslint": "^9.39.2",
     "@types/node": "^24.10.0"
   }
 }
