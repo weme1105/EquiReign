@@ -3,7 +3,8 @@ import { campaignBoardSize, campaignDifficulty, campaignPuzzleOrdinal } from '..
 
 interface CatalogSource { readonly size: number; readonly regionMap: readonly number[]; readonly solution: readonly Position[] }
 
-const SOURCES: Readonly<Record<BoardSize, CatalogSource>> = {
+/** Local bundled pool currently covers 6x6..12x12. Larger sizes are supported by the domain/runtime and are admitted through generated/server puzzle pools. */
+const SOURCES: Partial<Record<BoardSize, CatalogSource>> = {
   6: {
     size: 6,
     regionMap: [1,0,0,2,3,3, 1,1,0,2,3,3, 1,1,2,2,2,3, 4,2,2,3,3,3, 4,4,5,5,5,3, 4,4,4,5,5,5],
@@ -49,6 +50,7 @@ function givenIndexes(difficulty: Difficulty, size: BoardSize): readonly number[
 
 export function getPuzzle(difficulty: Difficulty, size: BoardSize = 8): PuzzleDefinition {
   const source = SOURCES[size];
+  if (!source) throw new Error(`No local puzzle source is bundled for ${size}x${size}; use the generated/server puzzle pool.`);
   return {
     id: `${size}x${size}-${difficulty}-001`,
     difficulty,
