@@ -9,15 +9,9 @@
  * - the two neighboring row values become consecutive after compression.
  *
  * Under the legal-adjacency rule, the second condition is equivalent to the
- * two neighboring values differing by exactly one.  Thus every value must be
+ * two neighboring values differing by exactly one. Thus every value must be
  * covered by at least one witness edge (with endpoint exceptions handled at
  * the two ends of the row path).
- *
- * The important pruning rule is that an unresolved midpoint witness can only
- * be created by placing its two endpoint values consecutively. If one endpoint
- * is already placed and is no longer the current tail, that witness can never
- * be created later. Likewise, if both endpoints are already placed and the
- * witness edge was not used, the branch is impossible.
  *
  * This is deliberately kept as a script instead of production Game Core.
  */
@@ -57,14 +51,18 @@ function search(size: number, enumerateAll: boolean): SearchStats {
       const requiredEndpoints = (1 << (c - 1)) | (1 << (c + 1));
       const endpointCount = popcount(usedMask & requiredEndpoints);
 
-      // Both endpoints are already behind the tail: their adjacency can no
-      // longer be introduced, so this witness can never be satisfied.
       if (endpointCount === 2) return false;
 
-      // Exactly one endpoint is already used. The only way to complete the
-      // witness is to put the other endpoint immediately after the current
-      // tail, and therefore the used endpoint must itself be the tail.
-      if (endpointCount === 1 && (requiredEndpoints & (1 << tail)) === 0) return false;
+      if (endpointCount === 1) {
+        // The remaining endpoint must be appended immediately. Checking
+        // compatibility here is stronger than merely requiring the used
+        // endpoint to be the tail.
+        if ((requiredEndpoints & (1 << tail)) === 0) return false;
+        const remainingEndpoint = (requiredEndpoints & ~(1 << tail)) !== 0
+          ? 31 - Math.clz32(requiredEndpoints & ~(1 << tail))
+          : -1;
+        if (remainingEndpoint < 0 || Math.abs(tail - remainingEndpoint) <= 1) return false;
+      }
     }
     return true;
   };
@@ -92,6 +90,16 @@ function search(size: number, enumerateAll: boolean): SearchStats {
       if ((usedMask & (1 << candidate)) !== 0) continue;
       if (Math.abs(previous - candidate) <= 1) continue;
 
+      // Transpose symmetry: p and p^{-1} are equivalent. Column reflection
+      // also preserves the problem. Once the first value f is fixed, the
+      // first coordinate in the four-element orbit is
+      //   min(f, size-1-f, pos(0), size-1-pos(0)).
+      // We only explore representatives with f <= all four values. Since
+      // pos(0) becomes known exactly when candidate 0 is placed, both
+      // transpose/reflection inequalities can be enforced incrementally.
+      const first = path[0]!;
+      if (candidate === 0 && (depth < first || depth > size - 1 - first)) continue;
+
       let nextWitnessMask = witnessMask;
       if (Math.abs(previous - candidate) === 2) {
         const center = Math.min(previous, candidate) + 1;
@@ -101,7 +109,6 @@ function search(size: number, enumerateAll: boolean): SearchStats {
       let nextNeedMask = needMask & ~nextWitnessMask;
 
       if (depth === 1) {
-        const first = path[0]!;
         if ((nextWitnessMask & (1 << first)) === 0) nextNeedMask |= 1 << first;
       } else {
         const center = previous;
@@ -125,9 +132,10 @@ function search(size: number, enumerateAll: boolean): SearchStats {
     }
   };
 
-  // Column reflection maps p to (size-1-p), preserving legality and
-  // irreducibility. Therefore first-column <= its reflection is a complete
-  // symmetry-breaking condition.
+  // Every D4 orbit has at least one representative satisfying the four-way
+  // first-coordinate minimum above. For a zero-result proof this symmetry
+  // break is complete; exact counting still requires a canonical tie-break
+  // if an orbit has equal minima.
   for (let first = 0; first <= Math.floor((size - 1) / 2); first += 1) {
     firstValues.push(first);
     path[0] = first;
