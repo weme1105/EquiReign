@@ -9,16 +9,15 @@
  * - the two neighboring row values become consecutive after compression.
  *
  * Under the legal-adjacency rule, the second condition is equivalent to the
- * two neighboring values differing by exactly one.  Thus, while constructing
- * the row permutation, an interior value is either covered by a consecutive
- * predecessor/successor pair, or it must eventually have the skip-one edge
- * (c-1,c+1) somewhere in the path.
+ * two neighboring values differing by exactly one.  Thus every value must be
+ * covered by at least one witness edge (with endpoint exceptions handled at
+ * the two ends of the row path).
  *
- * The important pruning rule is that an unresolved skip-one witness can only
+ * The important pruning rule is that an unresolved midpoint witness can only
  * be created by placing its two endpoint values consecutively. If one endpoint
- * has already been placed and is no longer the current tail, that witness can
- * never be created later. Likewise, if both endpoints are already placed and
- * the witness edge was not used, the branch is impossible.
+ * is already placed and is no longer the current tail, that witness can never
+ * be created later. Likewise, if both endpoints are already placed and the
+ * witness edge was not used, the branch is impossible.
  *
  * This is deliberately kept as a script instead of production Game Core.
  */
@@ -37,13 +36,17 @@ interface SearchStats {
 }
 
 function search(size: number, enumerateAll: boolean): SearchStats {
-  const fullMask = (1 << size) - 1;
   const path = Array<number>(size);
   const firstValues: number[] = [];
   let nodes = 0;
   let irreducible = 0;
 
-  const feasibleNeeds = (needMask: number, witnessMask: number, usedMask: number, tail: number): boolean => {
+  const feasibleNeeds = (
+    needMask: number,
+    witnessMask: number,
+    usedMask: number,
+    tail: number,
+  ): boolean => {
     let unresolved = needMask & ~witnessMask;
     while (unresolved !== 0) {
       const bit = unresolved & -unresolved;
@@ -54,7 +57,13 @@ function search(size: number, enumerateAll: boolean): SearchStats {
       const requiredEndpoints = (1 << (c - 1)) | (1 << (c + 1));
       const endpointCount = popcount(usedMask & requiredEndpoints);
 
+      // Both endpoints are already behind the tail: their adjacency can no
+      // longer be introduced, so this witness can never be satisfied.
       if (endpointCount === 2) return false;
+
+      // Exactly one endpoint is already used. The only way to complete the
+      // witness is to put the other endpoint immediately after the current
+      // tail, and therefore the used endpoint must itself be the tail.
       if (endpointCount === 1 && (requiredEndpoints & (1 << tail)) === 0) return false;
     }
     return true;
@@ -101,11 +110,12 @@ function search(size: number, enumerateAll: boolean): SearchStats {
         }
       }
 
-      if (!feasibleNeeds(nextNeedMask, nextWitnessMask, usedMask, previous)) continue;
+      const nextUsedMask = usedMask | (1 << candidate);
+      if (!feasibleNeeds(nextNeedMask, nextWitnessMask, nextUsedMask, candidate)) continue;
 
       path[depth] = candidate;
       visit(
-        usedMask | (1 << candidate),
+        nextUsedMask,
         nextWitnessMask,
         nextNeedMask,
         previous,
@@ -117,19 +127,16 @@ function search(size: number, enumerateAll: boolean): SearchStats {
 
   // Column reflection maps p to (size-1-p), preserving legality and
   // irreducibility. Therefore first-column <= its reflection is a complete
-  // symmetry breaking condition: first <= floor((size-1)/2).
+  // symmetry-breaking condition.
   for (let first = 0; first <= Math.floor((size - 1) / 2); first += 1) {
     firstValues.push(first);
     path[0] = first;
     try {
       visit(1 << first, 0, 0, -1, first, 1);
     } catch (error) {
-      if (error instanceof FoundSolution) {
-        if (!enumerateAll) {
-          console.log(JSON.stringify({ size, solution: error.solution, nodes }));
-          return { nodes, irreducible: 1, firstValues };
-        }
-        throw error;
+      if (error instanceof FoundSolution && !enumerateAll) {
+        console.log(JSON.stringify({ size, solution: error.solution, nodes }));
+        return { nodes, irreducible: 1, firstValues };
       }
       throw error;
     }
