@@ -4,7 +4,11 @@ import { rankPuzzlePool, type PuzzlePoolCandidate } from '../src/game-core/level
 import type { BoardSize } from '../src/game-core/types.ts';
 import { RegionPuzzleGenerator } from '../src/game-core/generator.ts';
 
-const sizes: readonly BoardSize[] = [6, 7, 8, 9, 10, 11, 12];
+/**
+ * Campaign pool coverage. 17..20 stay available to the runtime/research pool,
+ * but are intentionally excluded from the first Campaign dataset.
+ */
+const sizes: readonly BoardSize[] = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
 const targetPerSize = positiveInteger(process.argv[2] ?? '30', 'targetPerSize');
 const outputPath = resolve(process.argv[3] ?? 'src/puzzles/generated-pool.json');
 const generator = new RegionPuzzleGenerator();
@@ -38,7 +42,7 @@ for (const size of sizes) {
 
 const ranked = rankPuzzlePool(candidates);
 await mkdir(dirname(outputPath), { recursive: true });
-await writeFile(outputPath, `${JSON.stringify({ version: 1, generatedAt: new Date().toISOString(), puzzles: ranked }, null, 2)}\n`, 'utf8');
+await writeFile(outputPath, `${JSON.stringify({ version: 1, generatedAt: new Date().toISOString(), campaignSizes: sizes, puzzles: ranked }, null, 2)}\n`, 'utf8');
 process.stdout.write(`Wrote ${ranked.length} puzzles to ${outputPath}\n`);
 
 function positiveInteger(value: string, name: string): number {
