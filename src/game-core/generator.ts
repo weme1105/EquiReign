@@ -3,7 +3,7 @@ import type { BoardSnapshot, CellState, GeneratedPuzzle, PuzzleGenerator } from 
 
 export class RegionPuzzleGenerator implements PuzzleGenerator {
   generate(size: number, seed = Date.now()): GeneratedPuzzle {
-    if (!Number.isInteger(size) || size < 4 || size > 12) throw new Error('Generator supports size 4..12.');
+    if (!Number.isInteger(size) || size < 4 || size > 20) throw new Error('Generator supports size 4..20.');
     const random = mulberry32(seed >>> 0);
     for (let attempt = 0; attempt < 100; attempt += 1) {
       const columns = randomLayout(size, random);
