@@ -39,6 +39,11 @@ function growUniqueRegions(size: number, queens: readonly number[], random: () =
   const addFrontier = (row: number, column: number) => {
     for (const [dr, dc] of directions) { const r = row + dr; const c = column + dc; if (r >= 0 && c >= 0 && r < size && c < size && regions[r * size + c] === -1) frontier.add(r * size + c); }
   };
+  const unassignedNeighborCount = (row: number, column: number) => {
+    let count = 0;
+    for (const [dr, dc] of directions) { const r = row + dr; const c = column + dc; if (r >= 0 && c >= 0 && r < size && c < size && regions[r * size + c] === -1) count += 1; }
+    return count;
+  };
   for (let region = 0; region < size; region += 1) regions[region * size + queens[region]!] = region;
   for (let region = 0; region < size; region += 1) addFrontier(region, queens[region]!);
 
@@ -48,7 +53,13 @@ function growUniqueRegions(size: number, queens: readonly number[], random: () =
       if (regions[index] !== -1) { frontier.delete(index); continue; }
       const row = Math.floor(index / size); const column = index % size; const adjacent = new Set<number>();
       for (const [dr, dc] of directions) { const r = row + dr; const c = column + dc; if (r >= 0 && c >= 0 && r < size && c < size && regions[r * size + c]! >= 0) adjacent.add(regions[r * size + c]!); }
-      for (const region of adjacent) options.push({ index, region, score: sizes[region]! * 2 + Math.abs(row - region) + Math.abs(column - queens[region]!) + random() });
+      const degree = unassignedNeighborCount(row, column);
+      for (const region of adjacent) {
+        // Greedy ordering only: correctness still comes from the uniqueness check below.
+        // Prefer compact regions, then cells that keep more growth options alive.
+        const score = sizes[region]! * 2 + Math.abs(row - region) + Math.abs(column - queens[region]!) - degree * 0.5 + random();
+        options.push({ index, region, score });
+      }
     }
     options.sort((a, b) => a.score - b.score);
     let accepted: typeof options[number] | null = null;
