@@ -3,7 +3,7 @@ import test from 'node:test';
 import { enumerateEquiReignRegionMaps } from '../src/game-core/equireign-region-enumerator.ts';
 import { isValidEquiReignRegionMap } from '../src/game-core/region-map.ts';
 
-const solution = [1, 3, 0, 2, 5, 4] as const;
+const solution = [1, 3, 5, 0, 2, 4] as const;
 
 test('region enumerator emits only structurally valid connected maps', () => {
   const maps = [...enumerateEquiReignRegionMaps(6, solution, { limit: 250 })];
