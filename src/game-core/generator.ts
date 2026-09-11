@@ -59,11 +59,11 @@ function growUniqueRegions(size: number, queens: readonly number[], random: () =
       cells[option.index] = 'empty';
     }
     if (!accepted) return null;
+    cells[accepted.index] = 'empty';
     sizes[accepted.region] = sizes[accepted.region]! + 1;
     frontier.delete(accepted.index);
     addFrontier(Math.floor(accepted.index / size), accepted.index % size);
   }
-  cells.fill('empty');
   return regions;
 }
 
