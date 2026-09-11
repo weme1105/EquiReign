@@ -3,7 +3,7 @@ import type { BoardSnapshot, CellState, GeneratedPuzzle, PuzzleGenerator } from 
 
 export class RegionPuzzleGenerator implements PuzzleGenerator {
   generate(size: number, seed = Date.now()): GeneratedPuzzle {
-    if (!Number.isInteger(size) || size < 4 || size > 12) throw new Error('Generator supports size 4..12.');
+    if (!Number.isInteger(size) || size < 4 || size > 20) throw new Error('Generator supports size 4..20.');
     const random = mulberry32(seed >>> 0);
     for (let attempt = 0; attempt < 100; attempt += 1) {
       const columns = randomLayout(size, random);
@@ -34,31 +34,46 @@ function growUniqueRegions(size: number, queens: readonly number[], random: () =
   const sizes = Array<number>(size).fill(1);
   const frontier = new Set<number>();
   const directions = [[1,0],[-1,0],[0,1],[0,-1]] as const;
+  const cells: CellState[] = Array.from({ length: size * size }, () => 'empty');
+  let unassigned = size * size - size;
   const addFrontier = (row: number, column: number) => {
     for (const [dr, dc] of directions) { const r = row + dr; const c = column + dc; if (r >= 0 && c >= 0 && r < size && c < size && regions[r * size + c] === -1) frontier.add(r * size + c); }
+  };
+  const unassignedNeighborCount = (row: number, column: number) => {
+    let count = 0;
+    for (const [dr, dc] of directions) { const r = row + dr; const c = column + dc; if (r >= 0 && c >= 0 && r < size && c < size && regions[r * size + c] === -1) count += 1; }
+    return count;
   };
   for (let region = 0; region < size; region += 1) regions[region * size + queens[region]!] = region;
   for (let region = 0; region < size; region += 1) addFrontier(region, queens[region]!);
 
-  while (regions.includes(-1)) {
+  while (unassigned > 0) {
     const options: { index: number; region: number; score: number }[] = [];
     for (const index of frontier) {
       if (regions[index] !== -1) { frontier.delete(index); continue; }
       const row = Math.floor(index / size); const column = index % size; const adjacent = new Set<number>();
       for (const [dr, dc] of directions) { const r = row + dr; const c = column + dc; if (r >= 0 && c >= 0 && r < size && c < size && regions[r * size + c]! >= 0) adjacent.add(regions[r * size + c]!); }
-      for (const region of adjacent) options.push({ index, region, score: sizes[region]! * 2 + Math.abs(row - region) + Math.abs(column - queens[region]!) + random() });
+      const degree = unassignedNeighborCount(row, column);
+      for (const region of adjacent) {
+        // Greedy ordering only: correctness still comes from the uniqueness check below.
+        // Prefer compact regions, then cells that keep more growth options alive.
+        const score = sizes[region]! * 2 + Math.abs(row - region) + Math.abs(column - queens[region]!) - degree * 0.5 + random();
+        options.push({ index, region, score });
+      }
     }
     options.sort((a, b) => a.score - b.score);
     let accepted: typeof options[number] | null = null;
     for (const option of options) {
       regions[option.index] = option.region;
-      const cells: CellState[] = Array.from({ length: size * size }, () => 'empty');
       cells[option.index] = 'queen';
       if (countSolutions({ size, regionMap: regions, cells }, 1) === 0) { accepted = option; break; }
       regions[option.index] = -1;
+      cells[option.index] = 'empty';
     }
     if (!accepted) return null;
+    cells[accepted.index] = 'empty';
     sizes[accepted.region] = sizes[accepted.region]! + 1;
+    unassigned -= 1;
     frontier.delete(accepted.index);
     addFrontier(Math.floor(accepted.index / size), accepted.index % size);
   }
@@ -66,4 +81,4 @@ function growUniqueRegions(size: number, queens: readonly number[], random: () =
 }
 
 function mulberry32(seed: number): () => number { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-function shuffle<T>(items: readonly T[], random: () => number): T[] { const result = [...items]; for (let i = result.length - 1; i > 0; i -= 1) { const j = Math.floor(random() * (i + 1)); [result[i], result[j]] = [result[j]!, result[i]!]; } return result; }
+function shuffle<T>(items: readonly T[], random: () => number): T[] { const result = [...items]; for (let i = result.length - 1; i > 0; i -= 1) { const j = Math.floor(random() * (i + 1)); [result[i], result[j]!] = [result[j]!, result[i]!]; } return result; }

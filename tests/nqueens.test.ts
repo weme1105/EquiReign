@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { canonicalNQueensSolution, enumerateNQueens, solutionToPositions } from '../src/game-core/nqueens.ts';
-import type { BoardSize } from '../src/game-core/types.ts';
 
-const expected: Readonly<Record<BoardSize, readonly [number, number]>> = {
+const expected: Readonly<Record<number, readonly [number, number]>> = {
   6: [4, 1],
   7: [40, 6],
   8: [92, 12],

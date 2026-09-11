@@ -26,8 +26,12 @@ export const CAMPAIGN_LEVELS_PER_STAGE = 200;
 export const CAMPAIGN_FINITE_LEVELS = 1_000;
 export const CHALLENGE_UNLOCK_LEVEL = 200;
 export const DIFFICULTY_ORDER: readonly Difficulty[] = ['beginner', 'intermediate', 'advanced', 'expert', 'king'];
-/** Standard campaign board sizes. Difficulty is intentionally independent from size. */
-export const BOARD_SIZE_ORDER: readonly BoardSize[] = [6, 7, 8, 9, 10, 11, 12];
+/** All board sizes supported by the runtime/domain layer. */
+export const BOARD_SIZE_ORDER: readonly BoardSize[] = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
+/** Board sizes with a currently published local challenge pool. */
+export const CHALLENGE_BOARD_SIZE_ORDER: readonly BoardSize[] = [6, 7, 8, 9, 10, 11, 12];
+/** Campaign deliberately stops at 16x16 until the larger campaign pool is ready. */
+export const CAMPAIGN_BOARD_SIZE_ORDER: readonly BoardSize[] = [6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
 export const PUZZLE_POOL_TARGETS: Readonly<Record<CampaignStage, number>> = {
   beginner: 100,
   intermediate: 200,
@@ -62,13 +66,13 @@ export function campaignDifficulty(level: number): Difficulty {
   return DIFFICULTY_ORDER[Math.max(0, Math.min(DIFFICULTY_ORDER.length - 1, center + offset))]!;
 }
 
-/** Campaign size is independently selected from all standard sizes, deterministically per level. */
+/** Campaign size is independently selected from 6x6 through 16x16. */
 export function campaignBoardSize(level: number): BoardSize {
   assertLevel(level);
-  // A full-period affine sequence gives every standard size equal representation over 7 levels,
-  // keeps level 1 at 6x6, and preserves the established level 200 = 12x12 contract.
-  const index = (level * 2 + 5) % BOARD_SIZE_ORDER.length;
-  return BOARD_SIZE_ORDER[index]!;
+  // A full-period affine sequence gives every campaign size equal representation over 11 levels,
+  // keeps level 1 at 6x6, and avoids coupling size to difficulty.
+  const index = (level * 6 + 5) % CAMPAIGN_BOARD_SIZE_ORDER.length;
+  return CAMPAIGN_BOARD_SIZE_ORDER[index]!;
 }
 
 /** Stable one-based slot within the actual campaign difficulty pool. */
@@ -125,7 +129,7 @@ export function resolveChallengeSelection(request: {
       ? pick(DIFFICULTY_ORDER, request.difficultyRandomValue ?? Math.random())
       : request.difficulty,
     size: request.size === 'random'
-      ? pick(BOARD_SIZE_ORDER, request.sizeRandomValue ?? Math.random())
+      ? pick(CHALLENGE_BOARD_SIZE_ORDER, request.sizeRandomValue ?? Math.random())
       : request.size,
   };
 }

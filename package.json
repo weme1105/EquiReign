@@ -25,7 +25,9 @@
     "puzzles:analyze": "node --experimental-strip-types scripts/analyze-puzzle-candidates.ts",
     "puzzles:bundle": "node --experimental-strip-types scripts/build-bundled-campaign.ts",
     "puzzles:formal-build": "node --experimental-strip-types scripts/build-formal-puzzle-dataset.ts",
-    "puzzles:formal-rank": "node --experimental-strip-types scripts/rank-formal-puzzle-dataset.ts"
+    "puzzles:formal-rank": "node --experimental-strip-types scripts/rank-formal-puzzle-dataset.ts",
+    "puzzles:rank": "node --experimental-strip-types scripts/rank-puzzle-candidates.ts",
+    "puzzles:irreducible-images": "node --experimental-strip-types scripts/build-irreducible-solution-image-library.ts"
   },
   "dependencies": {
     "expo": "~57.0.9",
