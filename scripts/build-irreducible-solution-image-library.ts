@@ -66,7 +66,7 @@ function enumerateBandPermutations(rowBlock: number): void {
 function buildSolution(): number[] {
   const solution = Array<number>(size);
   for (let rowBlock = 0; rowBlock < blockCount; rowBlock += 1) {
-    const band = bandPermutation[rowBlock];
+    const band = bandPermutation[rowBlock]!;
     const baseColumn = band * 4;
     const primitive = blockChoices[rowBlock] === 0 ? A : B;
     for (let offset = 0; offset < 4; offset += 1) {
