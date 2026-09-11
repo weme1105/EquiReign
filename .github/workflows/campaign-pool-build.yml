@@ -5,6 +5,17 @@ on:
     branches:
       - feature/equireign-extension-final
   workflow_dispatch:
+    inputs:
+      size:
+        description: 'Exactly one board size to generate'
+        required: true
+        default: '6'
+        type: string
+      target:
+        description: 'Number of unique base puzzles to generate for this size'
+        required: true
+        default: '30'
+        type: string
 
 jobs:
   build-campaign-pool:
@@ -17,11 +28,14 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Generate 6x6-16x16 campaign pool
-        run: npm run puzzles:build -- 30 artifacts/generated-pool.json
-      - name: Upload campaign pool
+      - name: Generate one board size
+        env:
+          BOARD_SIZE: ${{ inputs.size || '6' }}
+          TARGET: ${{ inputs.target || '30' }}
+        run: npm run puzzles:build -- "$BOARD_SIZE" "$TARGET" "artifacts/generated-pool-${BOARD_SIZE}x${BOARD_SIZE}.json"
+      - name: Upload board-size pool
         uses: actions/upload-artifact@v4
         with:
-          name: campaign-pool-6-to-16
-          path: artifacts/generated-pool.json
+          name: campaign-pool-${{ inputs.size || '6' }}x${{ inputs.size || '6' }}
+          path: artifacts/generated-pool-*.json
           if-no-files-found: error
