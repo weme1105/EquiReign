@@ -8,11 +8,13 @@ The current runtime labels remain `beginner`, `intermediate`, `advanced`, `exper
 
 ## Ranking principles
 
-1. **Uniqueness is mandatory first.** A candidate must pass the existing validation gate: exactly one solution, connected regions, valid solution, and singleton-region limit.
-2. **Board size is a modifier, not the primary difficulty signal.** A well-constrained 16×16 puzzle can be easier than a poorly constrained 10×10 puzzle.
-3. **Measure the actual solving search.** Solver metrics are retained for every validated candidate and include nodes visited, branches tried, backtracks, and memo hits.
-4. **Prefer human-relevant signals where available.** Region constraints, forced placements, candidate elimination, and required guess depth should eventually supplement raw DFS cost.
-5. **Do not classify from one metric.** A single large DFS count can be caused by implementation details rather than player difficulty.
+1. **Uniqueness is mandatory first.** A candidate must pass the formal validation gate: exactly one effective solution under the active game semantics, valid connected regions, valid stored solution, and singleton-region constraints.
+2. **Variant uniqueness is independent.** Base uniqueness does not imply Frozen, Lost, or Dual-region uniqueness. Each effective variant constraint set must be verified separately before entering the difficulty pool.
+3. **Difficulty limits are a publishing filter.** Do not use Beginner/Intermediate/etc. limits to prune exhaustive generation. Generate the research pool first, then score and select.
+4. **Board size is a modifier, not the primary difficulty signal.** A well-constrained 16×16 puzzle can be easier than a poorly constrained 10×10 puzzle.
+5. **Measure the actual solving search.** Solver metrics are retained for every validated candidate and include nodes visited, branches tried, backtracks, and memo hits.
+6. **Prefer human-relevant signals where available.** Region constraints, forced placements, candidate elimination, and required guess depth should eventually supplement raw DFS cost.
+7. **Do not classify from one metric.** A single large DFS count can be caused by implementation details rather than player difficulty.
 
 ## Stage 1 — objective candidate score
 
@@ -26,6 +28,7 @@ Until a deterministic human-style solver is available, calculate a normalized re
 - `backtracks = solverMetrics.backtracks`
 - `memoHits = solverMetrics.memoHits`
 - `singleton = singletonRegionCount`
+- `variantLoad = effective special-mode constraint count`, when applicable
 
 Use logarithmic scaling for DFS quantities so very large searches do not dominate the score:
 
@@ -35,7 +38,7 @@ branchLoad = log2(1 + branches)
 backtrackLoad = log2(1 + backtracks)
 ```
 
-Normalize each metric against the candidate distribution **within the same board size**. This prevents 16×16 puzzles from automatically becoming harder than every 12×12 puzzle.
+Normalize each metric against the candidate distribution **within the same board size and mode layer**. This prevents 16×16 puzzles from automatically becoming harder than every 12×12 puzzle and avoids comparing unlike special modes without calibration.
 
 The initial composite research score is:
 
@@ -71,6 +74,25 @@ humanScore =
 ```
 
 This is intentionally a later-stage formula. Do not use it until the corresponding measurements are implemented and regression-tested.
+
+## Mode novelty and learning burden
+
+Difficulty is a continuous axis, while mode familiarity is a separate player-facing dimension. Therefore a puzzle may be objectively easy while still being inappropriate as a player's first exposure to a new mode.
+
+For campaign selection, retain separate signals for:
+
+- `puzzleDifficulty`: objective puzzle score;
+- `modeFamiliarity`: whether the player has already solved this mode and how many exposures they have had;
+- `modeTransitionCost`: cognitive cost of introducing a new rule/layer;
+- `specialConstraintLoad`: number and interaction of active special cells.
+
+The selector should prefer a gradual introduction:
+
+```text
+Tutorial → Very Easy → Easy → Normal → Hard → Expert
+```
+
+Do not encode a fixed mapping such as `Frozen = Advanced` or `Dual = King`. An `Advanced / Easy` special-mode puzzle may legitimately be easier than an `Intermediate / Hard` base puzzle.
 
 ## Player-facing buckets
 
@@ -109,14 +131,31 @@ Campaign currently targets 6×6 through 16×16. Difficulty should control the lo
 Recommended progression:
 
 - Early levels: mostly beginner/intermediate at 6×6–8×8.
+- New special modes: Tutorial/Very Easy exposure first, then Easy/Normal before Hard/Expert.
 - Mid campaign: intermediate/advanced across 8×8–12×12.
 - Late campaign: advanced/expert across 12×12–16×16.
 - King: sparse showcase levels selected from the top-ranked validated candidates, not every largest board.
 
 17×17–20×20 are not Campaign levels yet.
 
+## Exhaustive-library dependency
+
+For the 6×6 completion project, difficulty analysis is deliberately downstream of exhaustive enumeration:
+
+```text
+90 legal Queen layouts
+→ exhaustive legal Region Maps
+→ Base unique
+→ independently unique Frozen/Lost/Dual
+→ canonicalization/audit
+→ difficulty scoring
+→ campaign limits
+```
+
+A partial search result must never be presented as the complete difficulty distribution.
+
 ## Next implementation step
 
-Build a deterministic `rank-puzzle-candidates` research script that consumes validated candidate JSONL, computes the Stage 1 score, reports per-size distributions, and emits stable rank/percentile metadata. Then use that ranking to select the first 13×13–16×16 Campaign pool.
+Build a deterministic `rank-puzzle-candidates` research script that consumes validated candidate JSONL, computes the Stage 1 score, reports per-size/per-mode distributions, and emits stable rank/percentile metadata. Then use that ranking to select Campaign pools.
 
 Do not alter the production solver rules for this ranking work.
