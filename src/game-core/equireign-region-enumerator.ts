@@ -10,6 +10,9 @@ export interface EquiReignRegionEnumerationOptions {
  * layout. Every region is rooted at exactly one target Queen. The lowest-index
  * reachable unassigned cell is always expanded next, removing assignment-order
  * duplicates while retaining every connected map.
+ *
+ * No difficulty, singleton, or variant limit is applied here. Product admission
+ * rules belong to the later validation stage; this layer is the research pool.
  */
 export function* enumerateEquiReignRegionMaps(size: BoardSize, solution: readonly number[], options: EquiReignRegionEnumerationOptions = {}): Generator<readonly number[]> {
   validateInputs(size, solution, options);
@@ -35,7 +38,7 @@ export function* enumerateEquiReignRegionMaps(size: BoardSize, solution: readonl
     for (const region of adjacentRegions(regionMap, nextIndex, size)) {
       regionMap[nextIndex] = region;
       regionSizes[region] = regionSizes[region]! + 1;
-      if (canStillRespectSingletonLimit(regionSizes, regionMap, roots, size)) yield* visit();
+      yield* visit();
       regionSizes[region] = regionSizes[region]! - 1;
       regionMap[nextIndex] = -1;
       if (emitted >= limit) return;
@@ -63,26 +66,6 @@ function adjacentRegions(regionMap: readonly number[], index: number, size: numb
   if (column > 0 && regionMap[index - 1] !== -1) labels.add(regionMap[index - 1]!);
   if (column + 1 < size && regionMap[index + 1] !== -1) labels.add(regionMap[index + 1]!);
   return [...labels].sort((a, b) => a - b);
-}
-
-function canStillRespectSingletonLimit(regionSizes: readonly number[], regionMap: readonly number[], roots: readonly number[], size: number): boolean {
-  const singletonLimit = Math.ceil(size * size * 0.01);
-  let singletonCount = 0;
-  for (let region = 0; region < size; region += 1) {
-    if (regionSizes[region] !== 1) continue;
-    singletonCount += 1;
-    if (singletonCount > singletonLimit) return false;
-    if (!hasUnassignedNeighbor(regionMap, roots[region]!, size) && hasUnassignedCells(regionMap)) return false;
-  }
-  return true;
-}
-
-function hasUnassignedCells(regionMap: readonly number[]): boolean { return regionMap.some((region) => region === -1); }
-
-function hasUnassignedNeighbor(regionMap: readonly number[], index: number, size: number): boolean {
-  const row = Math.floor(index / size);
-  const column = index % size;
-  return (row > 0 && regionMap[index - size] === -1) || (row + 1 < size && regionMap[index + size] === -1) || (column > 0 && regionMap[index - 1] === -1) || (column + 1 < size && regionMap[index + 1] === -1);
 }
 
 function validateInputs(size: BoardSize, solution: readonly number[], options: EquiReignRegionEnumerationOptions): void {
