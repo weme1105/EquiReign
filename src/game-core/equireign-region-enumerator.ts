@@ -67,6 +67,9 @@ function adjacentRegions(regionMap: readonly number[], index: number, size: numb
 
 function validateInputs(size: BoardSize, solution: readonly number[], options: EquiReignRegionEnumerationOptions): void {
   if (solution.length !== size || new Set(solution).size !== size || solution.some((column) => !Number.isInteger(column) || column < 0 || column >= size)) throw new Error('solution must contain one distinct in-range column per row.');
+  for (let row = 1; row < size; row += 1) {
+    if (Math.abs(solution[row]! - solution[row - 1]!) <= 1) throw new Error('solution must satisfy EquiReign adjacent-row separation.');
+  }
   if (options.limit !== undefined && (!Number.isInteger(options.limit) || options.limit < 1)) throw new Error('limit must be a positive integer when supplied.');
   if (options.skip !== undefined && (!Number.isInteger(options.skip) || options.skip < 0)) throw new Error('skip must be a non-negative integer when supplied.');
 }
