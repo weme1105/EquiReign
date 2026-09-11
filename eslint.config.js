@@ -5,5 +5,14 @@ export default tseslint.config(
   { ignores: ['dist/**', 'node_modules/**', '.expo/**', 'playwright-report/**', 'test-results/**'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
-  { files: ['**/*.ts', '**/*.tsx'], languageOptions: { parserOptions: { projectService: true } } },
+  {
+    files: ['**/*.ts', '**/*.tsx'],
+    languageOptions: {
+      parserOptions: {
+        projectService: {
+          allowDefaultProject: ['scripts/*.ts'],
+        },
+      },
+    },
+  },
 );
