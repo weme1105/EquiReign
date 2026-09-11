@@ -24,7 +24,7 @@ interface RankedCandidate extends Candidate {
 }
 
 const input = argument('--input');
-const output = argument('--output', 'puzzle-ranked.jsonl');
+const output = argument('--output', 'puzzle-ranked.jsonl') ?? 'puzzle-ranked.jsonl';
 if (!input) throw new Error('Usage: --input <jsonl> [--output <jsonl>]');
 
 const candidates = readFileSync(resolve(input), 'utf8')
