@@ -2,7 +2,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { DIFFICULTIES } from '../src/game-core/difficulty.ts';
-import { BOARD_SIZE_ORDER, CHALLENGE_BOARD_SIZE_ORDER, challengeSuccessCount, createPlayerProgress, DIFFICULTY_ORDER, isChallengeUnlocked, resolveChallengeSelection, type PlayerProgress } from '../src/game-core/progression.ts';
+import { CHALLENGE_BOARD_SIZE_ORDER, challengeSuccessCount, createPlayerProgress, DIFFICULTY_ORDER, isChallengeUnlocked, resolveChallengeSelection, type PlayerProgress } from '../src/game-core/progression.ts';
 import type { BoardSize, Difficulty } from '../src/game-core/types.ts';
 import { loadPlayerProgress } from '../src/storage/player-progress-storage';
 
