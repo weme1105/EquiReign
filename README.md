@@ -10,6 +10,22 @@ EquiReign is the production Region Queens game. iOS and Android are the product 
 - Beginner / Intermediate / Advanced use solver feasibility feedback.
 - Expert / King hide feasibility feedback and provide three non-revealing logical-cell hints.
 
+## Puzzle-generation invariants
+
+- A generated base puzzle is publishable only when the formal EquiReign solver reports `solutionCount === 1`.
+- Variant metadata validity is **not** a uniqueness proof. Frozen, Lost, and Dual-region candidates must each be translated into their effective game constraints and independently re-verified by the solver.
+- Difficulty limits are applied **after** exhaustive candidate generation and difficulty analysis; they must not prune the research pool.
+- 6×6 exhaustive work must use an EquiReign-specific Queen enumerator. The legacy `scripts/enumerate-puzzle-shard.ts` is not an exhaustive source because it contains the traditional global-diagonal rule and an impractical region-assignment search.
+- The complete 6×6 target is: 90 legal Queen layouts → exhaustive legal Region Maps → unique Base pool → independently unique Frozen/Lost/Dual variants → canonicalization/symmetry audit → difficulty classification → Campaign selection.
+
+## Variant development
+
+Phase 3 is tracked on `feature/equireign-phase3-variants`. The current `PuzzleVariants` model contains `frozenCellIndexes`, `lostCellIndexes`, and `dualRegionCells`; `variant-uniqueness.ts` provides the acceptance-gate infrastructure. The effective constraint semantics for all three modes are still being formalized before exhaustive generation is considered complete.
+
+## Research status
+
+Known EquiReign legal-solution totals include 4=2, 5=14, 6=90, 7=646, 8=5,242, 9=47,622, 10=479,306, 11=5,296,790, and 12=63,779,034. Irreducible research and the 4k exceptional-family hypothesis are documented separately; the hypothesis is not a theorem.
+
 ## Architecture
 
 - `src/game-core`: platform-independent Puzzle, Solver, Rule, Difficulty, GameSession and Result domain.
