@@ -17,7 +17,6 @@ export interface EquiReignRegionEnumerationOptions {
 export function* enumerateEquiReignRegionMaps(size: BoardSize, solution: readonly number[], options: EquiReignRegionEnumerationOptions = {}): Generator<readonly number[]> {
   validateInputs(size, solution, options);
   const regionMap = Array<number>(size * size).fill(-1);
-  const regionSizes = Array<number>(size).fill(1);
   const roots = solution.map((column, row) => row * size + column);
   for (let region = 0; region < size; region += 1) regionMap[roots[region]!] = region;
 
@@ -37,9 +36,7 @@ export function* enumerateEquiReignRegionMaps(size: BoardSize, solution: readonl
     }
     for (const region of adjacentRegions(regionMap, nextIndex, size)) {
       regionMap[nextIndex] = region;
-      regionSizes[region] = regionSizes[region]! + 1;
       yield* visit();
-      regionSizes[region] = regionSizes[region]! - 1;
       regionMap[nextIndex] = -1;
       if (emitted >= limit) return;
     }
