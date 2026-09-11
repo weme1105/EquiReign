@@ -35,13 +35,14 @@ function growUniqueRegions(size: number, queens: readonly number[], random: () =
   const frontier = new Set<number>();
   const directions = [[1,0],[-1,0],[0,1],[0,-1]] as const;
   const cells: CellState[] = Array.from({ length: size * size }, () => 'empty');
+  let unassigned = size * size - size;
   const addFrontier = (row: number, column: number) => {
     for (const [dr, dc] of directions) { const r = row + dr; const c = column + dc; if (r >= 0 && c >= 0 && r < size && c < size && regions[r * size + c] === -1) frontier.add(r * size + c); }
   };
   for (let region = 0; region < size; region += 1) regions[region * size + queens[region]!] = region;
   for (let region = 0; region < size; region += 1) addFrontier(region, queens[region]!);
 
-  while (regions.includes(-1)) {
+  while (unassigned > 0) {
     const options: { index: number; region: number; score: number }[] = [];
     for (const index of frontier) {
       if (regions[index] !== -1) { frontier.delete(index); continue; }
@@ -61,6 +62,7 @@ function growUniqueRegions(size: number, queens: readonly number[], random: () =
     if (!accepted) return null;
     cells[accepted.index] = 'empty';
     sizes[accepted.region] = sizes[accepted.region]! + 1;
+    unassigned -= 1;
     frontier.delete(accepted.index);
     addFrontier(Math.floor(accepted.index / size), accepted.index % size);
   }
