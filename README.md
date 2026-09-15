@@ -1,22 +1,47 @@
 # EquiReign
 
-EquiReign is the game repository built on top of the NQueensSimulator solver and puzzle-generation work.
+EquiReign is the production Region Queens game. iOS and Android are the product mainline; Expo Web is the secondary universal target. `NQueensSimulator` remains the solver/generator laboratory and no simulator UI is copied into this app.
 
-## Repository role
+## Rules
 
-- `NQueensSimulator`: solver, generator, rule validation, algorithm playground.
-- `EquiReign`: game rules, difficulty system, sessions, hints, progression, economy, cosmetics, and production UI.
+- Exactly one Queen in every row, column, and region.
+- Queens may share a distant diagonal; only adjacent Queens are forbidden.
+- Given Queens are puzzle metadata: immutable, excluded from undo/history, and retained by restart.
+- Beginner / Intermediate / Advanced use solver feasibility feedback.
+- Expert / King hide feasibility feedback and provide three non-revealing logical-cell hints.
 
-## Initial game rules
+## Architecture
 
-- Beginner: 2 given queens; realtime queen-position validation enabled.
-- Intermediate: 1 given queen; realtime queen-position validation enabled.
-- Advanced: no given queens; realtime queen-position validation enabled.
-- Expert: no given queens; no answer-position realtime validation; 3 hints per game.
-- King: no given queens; no answer-position realtime validation; 3 hints per game.
-- Expert/King hints highlight the next logically determinable cell only. They do not reveal whether it is a queen or an X, and remain highlighted until the player's next board action.
-- Direct rule conflicts remain visible at all difficulties.
+- `src/game-core`: platform-independent Puzzle, Solver, Rule, Difficulty, GameSession and Result domain.
+- `src/puzzles`: unique, generator-verified Region Puzzle catalog.
+- `src/features`: React Native presentation.
+- `app`: Expo Router shell and screens.
+- `tests`: unit and coverage gates.
+- `e2e`: Playwright Chromium/WebKit product flows.
 
-## CI/CD baseline
+Dependencies point inward: `UI → Session → Domain → Puzzle/Solver`. Solver code has no React, account, shop, audio or cosmetic dependency.
 
-The repository starts with the same develop → CI → PR → main release discipline established in NQueensSimulator. The workflows are bootstrap-safe until the application scaffold and package lock exist.
+## Run
+
+```bash
+npm ci
+npm test
+npm run test:coverage
+npm run typecheck
+npm run lint
+npm run web
+```
+
+## Implemented product slice
+
+- five DifficultyPolicy definitions;
+- Region-aware unique puzzles and bitmask `countSolutions(limit)`;
+- Empty → X → Queen → Empty, long-press X shortcut, Undo and Restart;
+- direct Rule Conflict separated from solver-based Solution Feasibility;
+- current-board logical hints whose Queen/X answer never reaches UI;
+- hint highlight lifecycle and no-charge failure behavior;
+- full-board completion, timer, result data and completion screen;
+- outer Settings, Operation Tip and Rule Tip routes;
+- reproducible CI quality gates and browser E2E flows.
+
+Economy, account backend, leaderboard, daily backend, multiplayer and large cosmetic systems intentionally remain outside this first product slice.

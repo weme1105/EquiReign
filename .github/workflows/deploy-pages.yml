@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       target_sha:
-        description: 'Optional main commit SHA to deploy. Leave blank to deploy current main.'
+        description: 'Optional commit SHA to deploy. Leave blank to deploy current main.'
         required: false
         type: string
 
@@ -53,12 +53,12 @@ jobs:
         run: npm ci
 
       - name: Build production
-        run: npm run build
+        run: EXPO_PUBLIC_GIT_SHA="$(git rev-parse HEAD)" npm run build
 
       - name: Write deployment manifest
         run: |
           mkdir -p dist
-          printf 'PROD_BRANCH=main\nPROD_SHA=%s\n' "$(git rev-parse HEAD)" > dist/deployment-version.txt
+          printf 'DEPLOY_REF=%s\nDEPLOY_SHA=%s\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > dist/deployment-version.txt
           cat dist/deployment-version.txt
 
       - name: Setup Pages

@@ -1,0 +1,52 @@
+{
+  "name": "equireign",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "build": "expo export --platform web --output-dir dist",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types tests/*.test.ts",
+    "test:coverage": "node --experimental-strip-types --test --experimental-test-coverage --test-coverage-lines=70 --test-coverage-functions=70 --test-coverage-branches=70 tests/*.test.ts",
+    "audit": "npm audit --audit-level=high",
+    "e2e": "playwright test",
+    "puzzles:build": "node --experimental-strip-types scripts/build-puzzle-pool.ts",
+    "puzzles:benchmark": "node --experimental-strip-types scripts/benchmark-puzzle-pool.ts",
+    "puzzles:enumerate": "node --experimental-strip-types scripts/enumerate-puzzle-candidates-v2.ts",
+    "puzzles:enumerate-shard": "node --experimental-strip-types scripts/enumerate-puzzle-shard.ts",
+    "puzzles:enumerate-nqueens": "node --experimental-strip-types scripts/enumerate-nqueens-6-12.ts",
+    "puzzles:enumerate-nqueens-regions": "node --experimental-strip-types scripts/enumerate-nqueens-region-candidates.ts",
+    "puzzles:analyze": "node --experimental-strip-types scripts/analyze-puzzle-candidates.ts",
+    "puzzles:bundle": "node --experimental-strip-types scripts/build-bundled-campaign.ts",
+    "puzzles:formal-build": "node --experimental-strip-types scripts/build-formal-puzzle-dataset.ts",
+    "puzzles:formal-rank": "node --experimental-strip-types scripts/rank-formal-puzzle-dataset.ts"
+  },
+  "dependencies": {
+    "expo": "~57.0.9",
+    "expo-file-system": "~57.0.5",
+    "expo-router": "~57.0.9",
+    "expo-secure-store": "~57.0.1",
+    "expo-sqlite": "~57.0.1",
+    "expo-status-bar": "~57.0.1",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.2",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "4.27.0",
+    "react-native-web": "~0.21.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@playwright/test": "^1.58.2",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.54.0",
+    "eslint": "^9.39.2",
+    "@types/node": "^24.10.0"
+  }
+}
