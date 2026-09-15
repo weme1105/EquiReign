@@ -1,9 +1,6 @@
 name: Benchmark 11x11 Puzzle Generator
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       target:
@@ -22,10 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout EquiReign generator branch
+      - name: Checkout EquiReign main
         uses: actions/checkout@v4
         with:
-          ref: develop
+          ref: main
 
       - name: Setup Node
         uses: actions/setup-node@v4
