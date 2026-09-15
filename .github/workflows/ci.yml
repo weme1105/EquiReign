@@ -16,11 +16,6 @@ jobs:
           node-version: '22'
           cache: npm
       - run: npm ci
-      - name: Diagnose vulnerable dependency paths
-        run: |
-          npm ls js-yaml decode-uri-component uuid --all || true
-          npm audit --json > npm-audit.json || true
-          node -e "const a=require('./npm-audit.json'); for (const [k,v] of Object.entries(a.vulnerabilities||{})) if (['js-yaml','decode-uri-component','uuid'].includes(k)) console.log(JSON.stringify({name:k,range:v.range,severity:v.severity,isDirect:v.isDirect,via:v.via,fixAvailable:v.fixAvailable},null,2))"
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
