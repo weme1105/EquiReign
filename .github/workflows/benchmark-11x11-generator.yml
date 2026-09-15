@@ -1,0 +1,123 @@
+name: Benchmark 11x11 Puzzle Generator
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Number of successful 11x11 generations to benchmark
+        required: true
+        default: '10'
+        type: string
+      max_seeds:
+        description: Maximum deterministic seeds to try
+        required: true
+        default: '500'
+        type: string
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout EquiReign generator branch
+        uses: actions/checkout@v4
+        with:
+          ref: develop
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Benchmark 11x11 generator
+        env:
+          TARGET: ${{ inputs.target || '10' }}
+          MAX_SEEDS: ${{ inputs.max_seeds || '500' }}
+        run: |
+          node --experimental-strip-types --input-type=module <<'NODE'
+          import { writeFile } from 'node:fs/promises';
+          import { RegionPuzzleGenerator } from './src/game-core/generator.ts';
+
+          const target = Number(process.env.TARGET ?? 10);
+          const maxSeeds = Number(process.env.MAX_SEEDS ?? 500);
+          const size = 11;
+          const firstSeed = size * 1_000_000;
+          const generator = new RegionPuzzleGenerator();
+          const results = [];
+          const started = performance.now();
+
+          for (let offset = 0; offset < maxSeeds && results.length < target; offset += 1) {
+            const seed = firstSeed + offset;
+            const t0 = performance.now();
+            try {
+              const generated = generator.generate(size, seed);
+              const elapsedMs = performance.now() - t0;
+              const counts = new Map();
+              for (const region of generated.regionMap) counts.set(region, (counts.get(region) ?? 0) + 1);
+              results.push({
+                seed,
+                elapsedMs,
+                solverMetrics: generated.solverMetrics,
+                regionStats: {
+                  min: Math.min(...counts.values()),
+                  max: Math.max(...counts.values()),
+                  average: size,
+                  singleton: [...counts.values()].filter((n) => n === 1).length,
+                  double: [...counts.values()].filter((n) => n === 2).length,
+                },
+              });
+              process.stdout.write(`accepted ${results.length}/${target}: seed=${seed}, ${elapsedMs.toFixed(2)}ms\n`);
+            } catch (error) {
+              process.stdout.write(`rejected seed=${seed}: ${error instanceof Error ? error.message : String(error)}\n`);
+            }
+          }
+
+          const elapsedMs = performance.now() - started;
+          const report = {
+            size,
+            target,
+            maxSeeds,
+            seedsTried: results.length ? results.at(-1).seed - firstSeed + 1 : maxSeeds,
+            accepted: results.length,
+            successRate: results.length / Math.min(maxSeeds, Math.max(1, results.length ? results.at(-1).seed - firstSeed + 1 : maxSeeds)),
+            elapsedMs,
+            averageAcceptedGenerationMs: results.length ? results.reduce((sum, item) => sum + item.elapsedMs, 0) / results.length : null,
+            results,
+          };
+
+          await writeFile('benchmark-11x11.json', `${JSON.stringify(report, null, 2)}\n`, 'utf8');
+          process.stdout.write(`\nRESULT ${JSON.stringify({ accepted: report.accepted, target: report.target, seedsTried: report.seedsTried, elapsedMs: report.elapsedMs, averageAcceptedGenerationMs: report.averageAcceptedGenerationMs })}\n`);
+          if (results.length < target) process.exitCode = 1;
+          NODE
+
+      - name: Publish benchmark summary
+        if: always()
+        run: |
+          echo '## EquiReign 11x11 Generator Benchmark' >> "$GITHUB_STEP_SUMMARY"
+          if [ -f benchmark-11x11.json ]; then
+            node --input-type=module <<'NODE' >> "$GITHUB_STEP_SUMMARY"
+            import { readFile } from 'node:fs/promises';
+            const report = JSON.parse(await readFile('benchmark-11x11.json', 'utf8'));
+            console.log(`- Accepted: ${report.accepted}/${report.target}`);
+            console.log(`- Seeds tried: ${report.seedsTried}`);
+            console.log(`- Total wall time: ${(report.elapsedMs / 1000).toFixed(3)}s`);
+            console.log(`- Average accepted generation: ${report.averageAcceptedGenerationMs?.toFixed(3) ?? 'n/a'}ms`);
+            console.log(`- Success rate: ${(report.successRate * 100).toFixed(3)}%`);
+            NODE
+          fi
+
+      - name: Upload benchmark report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: equireign-11x11-generator-benchmark
+          path: benchmark-11x11.json
+          if-no-files-found: warn
+          retention-days: 14
