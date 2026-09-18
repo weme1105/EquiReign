@@ -10,7 +10,7 @@ interface Props { readonly session: GameSession; readonly onPress: (row: number,
 interface DragMemory { lastIndex: number; readonly startIndex: number; readonly startX: number; readonly startY: number; readonly startLocalX: number; readonly startLocalY: number; readonly startState: CellState; readonly mode: 'fill-x' | 'erase-x'; dragging: boolean; readonly visited: Set<number>; }
 interface PendingTap { readonly index: number; readonly timestamp: number; readonly originalState: CellState; readonly timer: ReturnType<typeof setTimeout>; }
 const REGION_COLORS = ['#e8d7b7','#b7d9d0','#c8c0e1','#e2bcbc','#d5d7a9','#b9cfe2','#dfc3df','#c8d7bd','#e4c9aa','#bfc1d9','#d6c2ac','#b8d8c9'];
-const BOARD_BORDER_WIDTH = 3; const DRAG_THRESHOLD_PX = 8; const DRAG_ACTIVATION_TOLERANCE = 0.22; const DOUBLE_TAP_WINDOW_MS = 1000;
+const BOARD_BORDER_WIDTH = 3; const DRAG_THRESHOLD_PX = 8; const DRAG_ACTIVATION_TOLERANCE = 0.35; const DOUBLE_TAP_WINDOW_MS = 1000;
 
 export function GameBoard({ session, onPress, onDoublePress, onDragToggleExcluded, dualColorCellIndexes = [], showDualRegions = false }: Props) {
   const { width, height } = useWindowDimensions(); const boardSize = Math.min(width - 24, height * .58, 560); const innerBoardSize = boardSize - BOARD_BORDER_WIDTH * 2; const cellSize = innerBoardSize / session.puzzle.size;
