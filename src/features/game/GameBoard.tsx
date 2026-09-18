@@ -38,15 +38,15 @@ export function GameBoard({ session, onPress, onDoublePress, dualColorCellIndexe
   const startDrag = (index: number, x: number, y: number, localX: number, localY: number) => { if (isProtected(index)) return; const state = session.boardState.cells[index]!; const mode = state === 'excluded' ? 'erase-x' : 'fill-x'; drag.current = { lastIndex: index, startIndex: index, startX: x, startY: y, startLocalX: localX, startLocalY: localY, startState: state, mode, dragging: false, visited: new Set<number>() }; };
   const moveDrag = (x: number, y: number) => { const memory = drag.current; if (!memory) return; if (!memory.dragging) { if (Math.hypot(x - memory.startX, y - memory.startY) < DRAG_THRESHOLD_PX) return; clearPendingTap(); memory.dragging = true; if (memory.startState !== 'queen') applyDragIndex(memory, memory.startIndex); } const size = session.puzzle.size; const startColumn = memory.startIndex % size; const startRow = Math.floor(memory.startIndex / size); const boardX = startColumn * cellSize + memory.startLocalX + (x - memory.startX); const boardY = startRow * cellSize + memory.startLocalY + (y - memory.startY); const rawColumn = boardX / cellSize; const rawRow = boardY / cellSize; const column = Math.floor(rawColumn); const row = Math.floor(rawRow); if (row < 0 || row >= size || column < 0 || column >= size) return; const localX = boardX - column * cellSize; const localY = boardY - row * cellSize; const nearCenter = Math.abs(localX / cellSize - 0.5) <= DRAG_ACTIVATION_TOLERANCE && Math.abs(localY / cellSize - 0.5) <= DRAG_ACTIVATION_TOLERANCE; if (!nearCenter) return; const index = row * size + column; applyDragLine(memory, memory.lastIndex, index); memory.lastIndex = index; };
   const endDrag = () => { const memory = drag.current; if (memory?.dragging) clearPendingTap(); drag.current = null; };
-  const panResponder = useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponderCapture: () => {
+  const panResponder = PanResponder.create({
+    onMoveShouldSetPanResponderCapture: (_event, gestureState) => {
       const memory = drag.current;
-      return Boolean(memory && !memory.dragging && Math.hypot(0, 0) >= 0);
+      return Boolean(memory && Math.hypot(gestureState.dx, gestureState.dy) >= DRAG_THRESHOLD_PX);
     },
     onPanResponderMove: (event) => moveDrag(event.nativeEvent.pageX, event.nativeEvent.pageY),
     onPanResponderRelease: endDrag,
     onPanResponderTerminate: endDrag
-  }), [cellSize, session.boardState, session.puzzle.size]);
+  });
   const handlePress = (index: number) => { if (isProtected(index)) return; const now = Date.now(); const pending = pendingTap.current; if (pending && pending.index === index && now - pending.timestamp <= DOUBLE_TAP_WINDOW_MS) { clearPendingTap(); // The first tap has already scheduled a React state update. Defer
       // the second transition until that update has committed so the two
       // transitions never compete in the same event turn.
