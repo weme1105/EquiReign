@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { DIFFICULTIES } from '../src/game-core/difficulty.ts';
 import { completeCampaignLevel, recordChallengeSuccess, recordFirstClear } from '../src/game-core/progression.ts';
-import { createGameSession, cycleCell, doubleTapCell, requestHint, restart, toPuzzleResult, undo } from '../src/game-core/session.ts';
+import { createGameSession, cycleCell, doubleTapCell, requestHint, toggleExcluded, restart, toPuzzleResult, undo } from '../src/game-core/session.ts';
 import type { BoardSize, Difficulty, GameSession, PuzzleDefinition } from '../src/game-core/types.ts';
 import { GameBoard } from '../src/features/game/GameBoard.tsx';
 import { getBundledCampaignPuzzle } from '../src/puzzles/bundled-campaign.ts';
@@ -97,7 +97,7 @@ export default function GameScreen() {
     <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.back}>‹ 選項</Text></Pressable><View style={styles.headerCenter}><Text style={[styles.level, { color: policy.accent }]}>{policy.label} · {session.puzzle.size}×{session.puzzle.size}</Text><Text style={styles.timer} testID="timer">{formatTime(result.elapsedTimeMs)}</Text></View>
     <Pressable accessibilityRole="button" onPress={() => router.push('/settings')} testID="game-settings"><Text style={styles.back}>設定</Text></Pressable>
   </View><View style={styles.content}>
-    <GameBoard session={session} onPress={(row, column) => setSession((current) => current ? cycleCell(current, { row, column }) : current)} onDoublePress={(row, column) => setSession((current) => current ? doubleTapCell(current, { row, column }) : current)} />
+    <GameBoard session={session} onPress={(row, column) => setSession((current) => current ? cycleCell(current, { row, column }) : current)} onDoublePress={(row, column) => setSession((current) => current ? doubleTapCell(current, { row, column }) : current)} onDragToggleExcluded={(row, column) => setSession((current) => current ? toggleExcluded(current, { row, column }) : current)} />
     <Text style={styles.instruction}>單點：空白→×、×→空白、皇冠→空白 · 一秒內點兩下：空白/×→皇冠、皇冠→× · 拖曳：皇冠起點途中空白→×、×起點途中×→空白、空白起點途中空白→×</Text>
     {session.completionError && <Text style={styles.errorText} testID="completion-error">盤面尚未正確完成，請檢查紅色衝突。</Text>}
     <View style={styles.actions}>
