@@ -241,7 +241,9 @@ test('CLICK and DOUBLECLICK transitions match the interaction rules', () => {
   assert.equal(session.boardState.cells[0], 'queen');
   session = doubleTapCell(singleTapCell(createGameSession(getPuzzle('advanced'), 100), position, 105), position, 106);
   assert.equal(session.boardState.cells[0], 'queen');
-  session = doubleTapCell(singleTapCell(singleTapCell(createGameSession(getPuzzle('advanced'), 100), position, 107), position, 108), position, 109);
+  session = doubleTapCell(singleTapCell(createGameSession(getPuzzle('advanced'), 100), position, 107), position, 108);
+  assert.equal(session.boardState.cells[0], 'queen');
+  session = doubleTapCell(session, position, 109);
   assert.equal(session.boardState.cells[0], 'excluded');
 });
 
