@@ -42,19 +42,6 @@ export function GameBoard({ session, onPress, onDoublePress, onDragToggleExclude
     if (!memory) return;
     if (memory.dragging) {
       clearPendingTap();
-      if (x !== undefined && y !== undefined) {
-        const size = session.puzzle.size;
-        const startColumn = memory.startIndex % size;
-        const startRow = Math.floor(memory.startIndex / size);
-        const boardX = startColumn * cellSize + memory.startLocalX + (x - memory.startX);
-        const boardY = startRow * cellSize + memory.startLocalY + (y - memory.startY);
-        const column = Math.floor(boardX / cellSize);
-        const row = Math.floor(boardY / cellSize);
-        if (row >= 0 && row < size && column >= 0 && column < size) {
-          const endIndex = row * size + column;
-          if (endIndex === memory.startIndex) invokeForIndex(endIndex, 'press');
-        }
-      }
     }
     drag.current = null;
   };
