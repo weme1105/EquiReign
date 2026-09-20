@@ -10,7 +10,7 @@ import { campaignBoardSize, campaignDifficulty, campaignPuzzleOrdinal, campaignS
 import { RegionPuzzleGenerator } from '../src/game-core/generator.ts';
 import { validatePuzzle } from '../src/game-core/puzzle.ts';
 import { findRuleConflicts, validateCompletedBoard } from '../src/game-core/rules.ts';
-import { configureInfiniteSession, createGameSession, cycleCell, isGivenQueen, placeQueen, queenFeasibilityErrors, requestHint, restart, toPuzzleResult, toggleExcluded, undo } from '../src/game-core/session.ts';
+import { configureInfiniteSession, createGameSession, cycleCell, doubleTapCell, isGivenQueen, placeQueen, queenFeasibilityErrors, requestHint, restart, singleTapCell, toPuzzleResult, toggleExcluded, undo } from '../src/game-core/session.ts';
 import { analyzeSolutions, countSolutions, extractFirstSolution, findLogicalHint } from '../src/game-core/solver.ts';
 import type { BoardSnapshot, Difficulty, PuzzleDefinition } from '../src/game-core/types.ts';
 import { BOARD_SIZES, DIFFICULTY_ORDER, getCampaignPuzzle, getPuzzle } from '../src/puzzles/catalog.ts';
@@ -225,6 +225,24 @@ test('tap cycles Empty to X to Queen to Empty and undo restores the board', () =
   assert.equal(session.boardState.cells[0], 'empty');
   session = undo(session);
   assert.equal(session.boardState.cells[0], 'queen');
+});
+
+test('CLICK and DOUBLECLICK transitions match the interaction rules', () => {
+  const position = { row: 0, column: 0 };
+
+  let session = createGameSession(getPuzzle('advanced'), 100);
+  session = singleTapCell(session, position, 101);
+  assert.equal(session.boardState.cells[0], 'excluded');
+  session = singleTapCell(session, position, 102);
+  assert.equal(session.boardState.cells[0], 'empty');
+  session = singleTapCell(session, position, 103);
+  assert.equal(session.boardState.cells[0], 'excluded');
+  session = doubleTapCell(createGameSession(getPuzzle('advanced'), 100), position, 104);
+  assert.equal(session.boardState.cells[0], 'queen');
+  session = doubleTapCell(singleTapCell(createGameSession(getPuzzle('advanced'), 100), position, 105), position, 106);
+  assert.equal(session.boardState.cells[0], 'queen');
+  session = doubleTapCell(singleTapCell(singleTapCell(createGameSession(getPuzzle('advanced'), 100), position, 107), position, 108), position, 109);
+  assert.equal(session.boardState.cells[0], 'excluded');
 });
 
 test('restart removes player state and retains given queens', () => {
