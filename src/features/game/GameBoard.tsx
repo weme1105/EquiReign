@@ -31,7 +31,7 @@ export function GameBoard({ session, onPress, onDoublePress, onDragToggleExclude
   const panResponder = PanResponder.create({
     onMoveShouldSetPanResponderCapture: (_event, gestureState) => { const memory = drag.current; return Boolean(memory && Math.hypot(gestureState.dx, gestureState.dy) >= DRAG_THRESHOLD_PX); },
     onPanResponderMove: (event) => moveDrag(event.nativeEvent.pageX, event.nativeEvent.pageY),
-    onPanResponderRelease: (event) => endDrag(event.nativeEvent.pageX, event.nativeEvent.pageY),
+    onPanResponderRelease: () => endDrag(),
     onPanResponderTerminate: () => endDrag()
   });
   const wrapCellInput = (index: number, cell: React.ReactNode) => {
