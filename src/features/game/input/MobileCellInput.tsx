@@ -12,7 +12,7 @@ export function MobileCellInput({ children, onSingleTap, onDoubleTap }: Props) {
   const doubleTapRef = useRef(null);
 
   return (
-    <LegacyTapGestureHandler
+    <TapGestureHandler
       ref={doubleTapRef}
       numberOfTaps={2}
       onHandlerStateChange={({ nativeEvent }) => {
@@ -20,15 +20,15 @@ export function MobileCellInput({ children, onSingleTap, onDoubleTap }: Props) {
       }}
     >
       <View>
-        <LegacyTapGestureHandler
+        <TapGestureHandler
           waitFor={doubleTapRef}
           onHandlerStateChange={({ nativeEvent }) => {
             if (nativeEvent.state === State.ACTIVE) onSingleTap();
           }}
         >
           <View>{children}</View>
-        </LegacyTapGestureHandler>
+        </TapGestureHandler>
       </View>
-    </LegacyTapGestureHandler>
+    </TapGestureHandler>
   );
 }
