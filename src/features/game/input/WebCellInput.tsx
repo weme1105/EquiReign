@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { View } from 'react-native';
 
 const DRAG_THRESHOLD_PX = 8;
+const SINGLE_TAP_DELAY_MS = 250;
 
 interface Props {
   readonly children: React.ReactNode;
@@ -69,7 +70,7 @@ export function WebCellInput({ children, onSingleTap, onDoubleTap }: Props) {
         singleTapTimer.current = setTimeout(() => {
           singleTapTimer.current = null;
           onSingleTap();
-        }, 0);
+        }, SINGLE_TAP_DELAY_MS);
         pointerStart.current = null;
       }}
     >
