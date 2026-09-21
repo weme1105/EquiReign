@@ -1,80 +1,44 @@
-import { useEffect, useRef } from 'react';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { View } from 'react-native';
-
-const DRAG_THRESHOLD_PX = 8;
-const SINGLE_TAP_DELAY_MS = 250;
 
 interface Props {
   readonly children: React.ReactNode;
+  readonly enabled?: boolean;
   readonly onSingleTap: () => void;
   readonly onDoubleTap: () => void;
+  readonly onDragBegin: (x: number, y: number) => void;
+  readonly onDragUpdate: (x: number, y: number) => void;
+  readonly onDragEnd: () => void;
 }
 
-type WebViewProps = React.ComponentProps<typeof View> & {
-  readonly onClick?: (event: { readonly detail?: number }) => void;
-  readonly onPointerDown?: (event: { readonly clientX?: number; readonly clientY?: number }) => void;
-  readonly onPointerMove?: (event: { readonly clientX?: number; readonly clientY?: number }) => void;
-};
+export function WebCellInput({
+  children,
+  enabled = true,
+  onSingleTap,
+  onDoubleTap,
+  onDragBegin,
+  onDragUpdate,
+  onDragEnd,
+}: Props) {
+  const singleTap = Gesture.Tap()
+    .onStart(() => onSingleTap());
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .onStart(() => onDoubleTap());
+  const pan = Gesture.Pan()
+    .minDistance(8)
+    .onBegin((event) => onDragBegin(event.x, event.y))
+    .onUpdate((event) => onDragUpdate(event.x, event.y))
+    .onFinalize(() => onDragEnd());
 
-const WebView = View as unknown as React.ComponentType<WebViewProps>;
-
-export function WebCellInput({ children, onSingleTap, onDoubleTap }: Props) {
-  const pointerStart = useRef<{ x: number; y: number } | null>(null);
-  const dragged = useRef(false);
-  const singleTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const clearSingleTap = () => {
-    if (singleTapTimer.current) {
-      clearTimeout(singleTapTimer.current);
-      singleTapTimer.current = null;
-    }
-  };
-
-  useEffect(() => () => clearSingleTap(), []);
+  const gesture = Gesture.Race(
+    pan,
+    Gesture.Exclusive(doubleTap, singleTap),
+  );
 
   return (
-    <WebView
-      onPointerDown={(event) => {
-        pointerStart.current = {
-          x: event.clientX ?? 0,
-          y: event.clientY ?? 0,
-        };
-        dragged.current = false;
-      }}
-      onPointerMove={(event) => {
-        if (!pointerStart.current) return;
-        const x = event.clientX ?? pointerStart.current.x;
-        const y = event.clientY ?? pointerStart.current.y;
-        if (Math.hypot(x - pointerStart.current.x, y - pointerStart.current.y) >= DRAG_THRESHOLD_PX) {
-          dragged.current = true;
-          clearSingleTap();
-        }
-      }}
-      onClick={(event) => {
-        if (dragged.current) {
-          pointerStart.current = null;
-          dragged.current = false;
-          return;
-        }
-
-        const detail = Number(event.detail ?? 1);
-        if (detail === 2) {
-          clearSingleTap();
-          onDoubleTap();
-          pointerStart.current = null;
-          return;
-        }
-
-        if (detail !== 1) return;
-        clearSingleTap();
-        singleTapTimer.current = setTimeout(() => {
-          singleTapTimer.current = null;
-          onSingleTap();
-        }, SINGLE_TAP_DELAY_MS);
-        pointerStart.current = null;
-      }}
-    >
-      {children}
-    </WebView>
+    <GestureDetector gesture={gesture}>
+      <View>{children}</View>
+    </GestureDetector>
   );
 }
