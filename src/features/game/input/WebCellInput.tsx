@@ -6,7 +6,7 @@ interface Props {
   readonly enabled?: boolean;
   readonly onSingleTap: () => void;
   readonly onDoubleTap: () => void;
-  readonly onDragBegin: (x: number, y: number) => void;
+  readonly onDragBegin: () => void;
   readonly onDragUpdate: (x: number, y: number) => void;
   readonly onDragEnd: () => void;
 }
@@ -21,13 +21,16 @@ export function WebCellInput({
   onDragEnd,
 }: Props) {
   const singleTap = Gesture.Tap()
-    .onStart(() => onSingleTap());
+    .onStart(() => onSingleTap())
+    .enabled(enabled);
   const doubleTap = Gesture.Tap()
     .numberOfTaps(2)
-    .onStart(() => onDoubleTap());
+    .onStart(() => onDoubleTap())
+    .enabled(enabled);
   const pan = Gesture.Pan()
     .minDistance(8)
-    .onBegin((event) => onDragBegin(event.x, event.y))
+    .enabled(enabled)
+    .onBegin(() => onDragBegin())
     .onUpdate((event) => onDragUpdate(event.x, event.y))
     .onFinalize(() => onDragEnd());
 
