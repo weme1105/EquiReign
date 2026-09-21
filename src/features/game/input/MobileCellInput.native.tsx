@@ -1,34 +1,44 @@
-import { useRef } from 'react';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { View } from 'react-native';
-import { TapGestureHandler, State } from 'react-native-gesture-handler';
 
 interface Props {
   readonly children: React.ReactNode;
+  readonly enabled?: boolean;
   readonly onSingleTap: () => void;
   readonly onDoubleTap: () => void;
+  readonly onDragBegin: (x: number, y: number) => void;
+  readonly onDragUpdate: (x: number, y: number) => void;
+  readonly onDragEnd: () => void;
 }
 
-export function MobileCellInput({ children, onSingleTap, onDoubleTap }: Props) {
-  const doubleTapRef = useRef(null);
+export function MobileCellInput({
+  children,
+  enabled = true,
+  onSingleTap,
+  onDoubleTap,
+  onDragBegin,
+  onDragUpdate,
+  onDragEnd,
+}: Props) {
+  const singleTap = Gesture.Tap()
+    .onStart(() => onSingleTap());
+  const doubleTap = Gesture.Tap()
+    .numberOfTaps(2)
+    .onStart(() => onDoubleTap());
+  const pan = Gesture.Pan()
+    .minDistance(8)
+    .onBegin((event) => onDragBegin(event.x, event.y))
+    .onUpdate((event) => onDragUpdate(event.x, event.y))
+    .onFinalize(() => onDragEnd());
+
+  const gesture = Gesture.Race(
+    pan,
+    Gesture.Exclusive(doubleTap, singleTap),
+  );
 
   return (
-    <TapGestureHandler
-      ref={doubleTapRef}
-      numberOfTaps={2}
-      onHandlerStateChange={({ nativeEvent }) => {
-        if (nativeEvent.state === State.ACTIVE) onDoubleTap();
-      }}
-    >
-      <View>
-        <TapGestureHandler
-          waitFor={doubleTapRef}
-          onHandlerStateChange={({ nativeEvent }) => {
-            if (nativeEvent.state === State.ACTIVE) onSingleTap();
-          }}
-        >
-          <View>{children}</View>
-        </TapGestureHandler>
-      </View>
-    </TapGestureHandler>
+    <GestureDetector gesture={gesture}>
+      <View>{children}</View>
+    </GestureDetector>
   );
 }
