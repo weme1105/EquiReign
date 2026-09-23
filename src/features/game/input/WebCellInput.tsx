@@ -28,6 +28,7 @@ export function WebCellInput({
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const dragging = useRef(false);
   const suppressClick = useRef(false);
+  const pointerMoved = useRef(false);
   const lastTapAt = useRef(0);
   const singleTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -54,6 +55,7 @@ export function WebCellInput({
       clearSingleTapTimer();
       dragging.current = true;
       suppressClick.current = true;
+      pointerMoved.current = true;
       onDragBegin(start.x, start.y);
     }
     if (dragging.current) onDragUpdate(event.pageX, event.pageY);
@@ -71,17 +73,29 @@ export function WebCellInput({
     pointerStart.current = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY };
     dragging.current = false;
     suppressClick.current = false;
+    pointerMoved.current = false;
     window.addEventListener('pointermove', handleWindowPointerMove);
     window.addEventListener('pointerup', handleWindowPointerUp);
     window.addEventListener('pointercancel', handleWindowPointerUp);
   };
 
-  const handlePointerUp = () => {
-    if (!enabled || !pointerStart.current) return;
+  const handlePointerUp = (event: WebPointerEvent) => {
+    const start = pointerStart.current;
+    if (!enabled || !start) return;
+    const dx = event.nativeEvent.pageX - start.x;
+    const dy = event.nativeEvent.pageY - start.y;
+    if (!dragging.current && Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) {
+      dragging.current = true;
+      suppressClick.current = true;
+      pointerMoved.current = true;
+      clearSingleTapTimer();
+      onDragBegin(start.x, start.y);
+      onDragUpdate(event.nativeEvent.pageX, event.nativeEvent.pageY);
+    }
     window.removeEventListener('pointermove', handleWindowPointerMove);
     window.removeEventListener('pointerup', handleWindowPointerUp);
     window.removeEventListener('pointercancel', handleWindowPointerUp);
-    if (dragging.current) {
+    if (dragging.current || pointerMoved.current) {
       finishPointer();
       return;
     }
