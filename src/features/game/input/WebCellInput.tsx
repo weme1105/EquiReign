@@ -6,7 +6,7 @@ interface Props {
   readonly enabled?: boolean;
   readonly onSingleTap: () => void;
   readonly onDoubleTap: () => void;
-  readonly onDragBegin: () => void;
+  readonly onDragBegin: (pageX: number, pageY: number) => void;
   readonly onDragUpdate: (pageX: number, pageY: number) => void;
   readonly onDragEnd: () => void;
 }
@@ -54,7 +54,7 @@ export function WebCellInput({
       clearSingleTapTimer();
       dragging.current = true;
       suppressClick.current = true;
-      onDragBegin();
+      onDragBegin(start.x, start.y);
     }
     if (dragging.current) onDragUpdate(event.pageX, event.pageY);
   };
