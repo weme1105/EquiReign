@@ -77,7 +77,7 @@ export function WebCellInput({
   };
 
   const handlePointerUp = () => {
-    if (!enabled) return;
+    if (!enabled || !pointerStart.current) return;
     window.removeEventListener('pointermove', handleWindowPointerMove);
     window.removeEventListener('pointerup', handleWindowPointerUp);
     window.removeEventListener('pointercancel', handleWindowPointerUp);
