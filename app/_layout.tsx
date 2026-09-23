@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
 import { ensureAnonymousIdentity } from '../src/auth/anonymous-auth.ts';
-import { GestureRoot } from '../src/platform/GestureRoot.tsx';
+import { GestureRoot } from '../src/platform/GestureRoot';
 
 export default function RootLayout() {
   useEffect(() => {
