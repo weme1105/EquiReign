@@ -1,16 +1,16 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
-import { DIFFICULTIES } from '../src/game-core/difficulty.ts';
-import { completeCampaignLevel, recordChallengeSuccess, recordFirstClear } from '../src/game-core/progression.ts';
-import { createGameSession, doubleTapCell, requestHint, singleTapCell, toggleExcluded, restart, toPuzzleResult, undo } from '../src/game-core/session.ts';
-import type { BoardSize, Difficulty, GameSession, PuzzleDefinition } from '../src/game-core/types.ts';
+import { DIFFICULTIES } from '../../game-core/difficulty.ts';
+import { completeCampaignLevel, recordChallengeSuccess, recordFirstClear } from '../../game-core/progression.ts';
+import { createGameSession, doubleTapCell, requestHint, singleTapCell, toggleExcluded, restart, toPuzzleResult, undo } from '../../game-core/session.ts';
+import type { BoardSize, Difficulty, GameSession, PuzzleDefinition } from '../../game-core/types.ts';
 import { WebGameBoard } from './WebGameBoard.tsx';
-import { getBundledCampaignPuzzle } from '../src/puzzles/bundled-campaign.ts';
-import { ensureDownloadedCampaignPuzzle } from '../src/puzzles/campaign-puzzle-source.ts';
-import { getPuzzle } from '../src/puzzles/catalog.ts';
-import { clearActiveSession, loadActiveSession, saveActiveSession } from '../src/storage/active-session-storage';
-import { loadPlayerProgress, savePlayerProgress } from '../src/storage/player-progress-storage';
+import { getBundledCampaignPuzzle } from '../../puzzles/bundled-campaign.ts';
+import { ensureDownloadedCampaignPuzzle } from '../../puzzles/campaign-puzzle-source.ts';
+import { getPuzzle } from '../../puzzles/catalog.ts';
+import { clearActiveSession, loadActiveSession, saveActiveSession } from '../../storage/active-session-storage';
+import { loadPlayerProgress, savePlayerProgress } from '../../storage/player-progress-storage';
 
 function parseDifficulty(value: string | string[] | undefined): Difficulty {
   return value === 'beginner' || value === 'intermediate' || value === 'advanced' || value === 'expert' || value === 'king' ? value : 'beginner';
