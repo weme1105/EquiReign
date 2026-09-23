@@ -38,17 +38,18 @@ export function WebCellInput({
     }
   };
 
-  const handlePointerDown = (event: WebPointerEvent) => {
-    if (!enabled) return;
-    pointerStart.current = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY };
+  const finishPointer = () => {
+    if (dragging.current) onDragEnd();
+    pointerStart.current = null;
     dragging.current = false;
     suppressClick.current = false;
   };
 
-  const handlePointerMove = (event: WebPointerEvent) => {
-    if (!enabled || !pointerStart.current) return;
-    const dx = event.nativeEvent.pageX - pointerStart.current.x;
-    const dy = event.nativeEvent.pageY - pointerStart.current.y;
+  const handleWindowPointerMove = (event: PointerEvent) => {
+    const start = pointerStart.current;
+    if (!enabled || !start) return;
+    const dx = event.pageX - start.x;
+    const dy = event.pageY - start.y;
     if (!dragging.current && Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) {
       clearSingleTapTimer();
       dragging.current = true;
@@ -58,11 +59,33 @@ export function WebCellInput({
     if (dragging.current) onDragUpdate(dx, dy);
   };
 
+  const handleWindowPointerUp = () => {
+    window.removeEventListener('pointermove', handleWindowPointerMove);
+    window.removeEventListener('pointerup', handleWindowPointerUp);
+    window.removeEventListener('pointercancel', handleWindowPointerUp);
+    finishPointer();
+  };
+
+  const handlePointerDown = (event: WebPointerEvent) => {
+    if (!enabled) return;
+    pointerStart.current = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY };
+    dragging.current = false;
+    suppressClick.current = false;
+    window.addEventListener('pointermove', handleWindowPointerMove);
+    window.addEventListener('pointerup', handleWindowPointerUp);
+    window.addEventListener('pointercancel', handleWindowPointerUp);
+  };
+
   const handlePointerUp = () => {
     if (!enabled) return;
+    window.removeEventListener('pointermove', handleWindowPointerMove);
+    window.removeEventListener('pointerup', handleWindowPointerUp);
+    window.removeEventListener('pointercancel', handleWindowPointerUp);
     if (dragging.current) {
-      onDragEnd();
-    } else if (!suppressClick.current) {
+      finishPointer();
+      return;
+    }
+    if (!suppressClick.current) {
       const now = Date.now();
       const isDoubleTap = now - lastTapAt.current <= SINGLE_TAP_DELAY_MS;
       lastTapAt.current = now;
@@ -78,18 +101,11 @@ export function WebCellInput({
         }, SINGLE_TAP_DELAY_MS);
       }
     }
-    pointerStart.current = null;
-    dragging.current = false;
-    suppressClick.current = false;
+    finishPointer();
   };
 
   return (
-    <View
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-    >
+    <View onPointerDown={handlePointerDown} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp}>
       {children}
     </View>
   );
