@@ -40,8 +40,8 @@ export function GameBoard({ session, onPress, onDoublePress, onDragToggleExclude
     const size = session.puzzle.size;
     const startColumn = memory.startIndex % size;
     const startRow = Math.floor(memory.startIndex / size);
-    const boardX = startColumn * cellSize + x;
-    const boardY = startRow * cellSize + y;
+    const boardX = (startColumn + 0.5) * cellSize + x;
+    const boardY = (startRow + 0.5) * cellSize + y;
     const column = Math.floor(boardX / cellSize);
     const row = Math.floor(boardY / cellSize);
     if (row < 0 || row >= size || column < 0 || column >= size) return;
