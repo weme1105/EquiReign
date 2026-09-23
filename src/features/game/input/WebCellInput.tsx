@@ -11,6 +11,15 @@ interface Props {
   readonly onDragEnd: () => void;
 }
 
+interface WebPointerEvent {
+  readonly nativeEvent: {
+    readonly pageX: number;
+    readonly pageY: number;
+    readonly locationX: number;
+    readonly locationY: number;
+  };
+}
+
 const DRAG_THRESHOLD_PX = 8;
 const SINGLE_TAP_DELAY_MS = 250;
 
@@ -35,14 +44,14 @@ export function WebCellInput({
     }
   };
 
-  const handlePointerDown = (event: any) => {
+  const handlePointerDown = (event: WebPointerEvent) => {
     if (!enabled) return;
     pointerStart.current = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY };
     dragging.current = false;
     suppressClick.current = false;
   };
 
-  const handlePointerMove = (event: any) => {
+  const handlePointerMove = (event: WebPointerEvent) => {
     if (!enabled || !pointerStart.current) return;
     const dx = event.nativeEvent.pageX - pointerStart.current.x;
     const dy = event.nativeEvent.pageY - pointerStart.current.y;
