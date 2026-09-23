@@ -7,7 +7,7 @@ interface Props {
   readonly onSingleTap: () => void;
   readonly onDoubleTap: () => void;
   readonly onDragBegin: () => void;
-  readonly onDragUpdate: (dx: number, dy: number) => void;
+  readonly onDragUpdate: (pageX: number, pageY: number) => void;
   readonly onDragEnd: () => void;
 }
 
@@ -56,7 +56,7 @@ export function WebCellInput({
       suppressClick.current = true;
       onDragBegin();
     }
-    if (dragging.current) onDragUpdate(dx, dy);
+    if (dragging.current) onDragUpdate(event.pageX, event.pageY);
   };
 
   const handleWindowPointerUp = () => {
