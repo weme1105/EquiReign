@@ -8,7 +8,7 @@ import type { CellState, GameSession } from '../../game-core/types.ts';
 import { WebCellInput } from './input/WebCellInput.tsx';
 
 interface Props { readonly session: GameSession; readonly onPress: (row: number, column: number) => void; readonly onDoublePress: (row: number, column: number) => void; readonly onDragToggleExcluded?: (row: number, column: number) => void; readonly dualColorCellIndexes?: readonly number[]; readonly showDualRegions?: boolean; }
-interface DragMemory { lastIndex: number; readonly startIndex: number; readonly startState: CellState; readonly mode: 'fill-x' | 'erase-x'; dragging: boolean; readonly visited: Set<number>; }
+interface DragMemory { lastIndex: number; readonly startIndex: number; readonly startState: CellState; readonly mode: 'fill-x' | 'erase-x'; readonly startPageX: number; readonly startPageY: number; dragging: boolean; readonly visited: Set<number>; }
 const REGION_COLORS = ['#e8d7b7','#b7d9d0','#c8c0e1','#e2bcbc','#d5d7a9','#b9cfe2','#dfc3df','#c8d7bd','#e4c9aa','#bfc1d9','#d6c2ac','#b8d8c9'];
 const BOARD_BORDER_WIDTH = 3; const DRAG_ACTIVATION_TOLERANCE = 0.35;
 
@@ -24,7 +24,7 @@ export function GameBoard({ session, onPress, onDoublePress, onDragToggleExclude
   const applyDragIndex = (memory: DragMemory, index: number) => { if (memory.visited.has(index) || isProtected(index)) return; memory.visited.add(index); const state = session.boardState.cells[index]!; if (memory.mode === 'fill-x' && state === 'empty') invokeForIndex(index, 'click'); if (memory.mode === 'erase-x' && state === 'excluded') { const row = Math.floor(index / session.puzzle.size); const column = index % session.puzzle.size; setLastInteractedIndex(index); onDragToggleExcluded?.(row, column); } };
   const applyDragLine = (memory: DragMemory, fromIndex: number, toIndex: number) => { const size = session.puzzle.size; const fromRow = Math.floor(fromIndex / size); const fromColumn = fromIndex % size; const toRow = Math.floor(toIndex / size); const toColumn = toIndex % size; const steps = Math.max(Math.abs(toRow - fromRow), Math.abs(toColumn - fromColumn)); if (!steps) return; for (let step = 1; step <= steps; step += 1) { const row = Math.round(fromRow + (toRow - fromRow) * step / steps); const column = Math.round(fromColumn + (toColumn - fromColumn) * step / steps); applyDragIndex(memory, row * size + column); } };
   const unitHasNoQueenAndAllX = (index: number): boolean => { const size = session.puzzle.size; const row = Math.floor(index / size); const column = index % size; const region = session.puzzle.regionMap[index]!; const rowIndexes = Array.from({ length: size }, (_, value) => row * size + value); const columnIndexes = Array.from({ length: size }, (_, value) => value * size + column); const regionIndexes = session.puzzle.regionMap.flatMap((value, cell) => value === region ? [cell] : []); return [rowIndexes, columnIndexes, regionIndexes].some((indexes) => { const states = indexes.map((cell) => session.boardState.cells[cell]!); return !states.includes('queen') && states.every((state) => state === 'excluded'); }); };
-  const startDrag = (index: number) => { if (isProtected(index)) return; const state = session.boardState.cells[index]!; const mode = state === 'excluded' ? 'erase-x' : 'fill-x'; drag.current = { lastIndex: index, startIndex: index, startState: state, mode, dragging: false, visited: new Set<number>() }; };
+  const startDrag = (index: number, pageX: number, pageY: number) => { if (isProtected(index)) return; const state = session.boardState.cells[index]!; const mode = state === 'excluded' ? 'erase-x' : 'fill-x'; drag.current = { lastIndex: index, startIndex: index, startState: state, mode, startPageX: pageX, startPageY: pageY, dragging: false, visited: new Set<number>() }; };
   const moveDrag = (pageX: number, pageY: number) => {
     const memory = drag.current;
     if (!memory) return;
@@ -35,8 +35,8 @@ export function GameBoard({ session, onPress, onDoublePress, onDragToggleExclude
     const size = session.puzzle.size;
     const startColumn = memory.startIndex % size;
     const startRow = Math.floor(memory.startIndex / size);
-    const boardX = (startColumn + 0.5) * cellSize + pageX - (drag.currentPageX ?? pageX);
-    const boardY = (startRow + 0.5) * cellSize + pageY - (drag.currentPageY ?? pageY);
+    const boardX = (startColumn + 0.5) * cellSize + pageX - memory.startPageX;
+    const boardY = (startRow + 0.5) * cellSize + pageY - memory.startPageY;
     const column = Math.floor(boardX / cellSize);
     const row = Math.floor(boardY / cellSize);
     if (row < 0 || row >= size || column < 0 || column >= size) return;
@@ -52,8 +52,8 @@ export function GameBoard({ session, onPress, onDoublePress, onDragToggleExclude
   const wrapCellInput = (index: number, cell: React.ReactNode, protectedCell: boolean) => {
     const singleTap = () => invokeForIndex(index, 'click');
     const doubleTap = () => invokeForIndex(index, 'doubleClick');
-    const dragBegin = () => startDrag(index);
-    const dragUpdate = (x: number, y: number) => moveDrag(x, y);
+    const dragBegin = (pageX: number, pageY: number) => startDrag(index, pageX, pageY);
+    const dragUpdate = (pageX: number, pageY: number) => moveDrag(pageX, pageY);
     const dragEnd = () => endDrag();
     return <WebCellInput enabled={!protectedCell} onSingleTap={singleTap} onDoubleTap={doubleTap} onDragBegin={dragBegin} onDragUpdate={dragUpdate} onDragEnd={dragEnd}>{cell}</WebCellInput>
      ;
