@@ -28,6 +28,7 @@ export function WebCellInput({
   const pointerStart = useRef<{ x: number; y: number } | null>(null);
   const dragging = useRef(false);
   const suppressClick = useRef(false);
+  const lastTapAt = useRef(0);
   const singleTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearSingleTapTimer = () => {
@@ -61,30 +62,27 @@ export function WebCellInput({
 
   const handlePointerUp = () => {
     if (!enabled) return;
-    if (dragging.current) onDragEnd();
+    if (dragging.current) {
+      onDragEnd();
+    } else if (!suppressClick.current) {
+      const now = Date.now();
+      const isDoubleTap = now - lastTapAt.current <= SINGLE_TAP_DELAY_MS;
+      lastTapAt.current = now;
+      clearSingleTapTimer();
+      if (isDoubleTap) {
+        lastTapAt.current = 0;
+        onDoubleTap();
+      } else {
+        singleTapTimer.current = setTimeout(() => {
+          singleTapTimer.current = null;
+          lastTapAt.current = 0;
+          onSingleTap();
+        }, SINGLE_TAP_DELAY_MS);
+      }
+    }
     pointerStart.current = null;
     dragging.current = false;
-  };
-
-  const handleClick = () => {
-    if (!enabled || suppressClick.current) {
-      suppressClick.current = false;
-      return;
-    }
-    clearSingleTapTimer();
-    singleTapTimer.current = setTimeout(() => {
-      singleTapTimer.current = null;
-      onSingleTap();
-    }, SINGLE_TAP_DELAY_MS);
-  };
-
-  const handleDoubleClick = () => {
-    if (!enabled || suppressClick.current) {
-      suppressClick.current = false;
-      return;
-    }
-    clearSingleTapTimer();
-    onDoubleTap();
+    suppressClick.current = false;
   };
 
   return (
@@ -93,8 +91,6 @@ export function WebCellInput({
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
-      onClick={handleClick}
-      onDoubleClick={handleDoubleClick}
     >
       {children}
     </View>
