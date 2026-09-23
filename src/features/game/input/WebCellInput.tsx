@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { View } from 'react-native';
+import { NativeSyntheticEvent, NativePointerEvent, View } from 'react-native';
 
 interface Props {
   readonly children: React.ReactNode;
@@ -11,17 +11,10 @@ interface Props {
   readonly onDragEnd: () => void;
 }
 
-interface WebPointerEvent {
-  readonly nativeEvent: {
-    readonly pageX: number;
-    readonly pageY: number;
-    readonly locationX: number;
-    readonly locationY: number;
-  };
-}
-
 const DRAG_THRESHOLD_PX = 8;
 const SINGLE_TAP_DELAY_MS = 250;
+
+type WebPointerEvent = NativeSyntheticEvent<NativePointerEvent>;
 
 export function WebCellInput({
   children,
@@ -62,7 +55,7 @@ export function WebCellInput({
       onDragBegin();
     }
     if (dragging.current) {
-      onDragUpdate(event.nativeEvent.locationX, event.nativeEvent.locationY);
+      onDragUpdate(event.nativeEvent.offsetX, event.nativeEvent.offsetY);
     }
   };
 
