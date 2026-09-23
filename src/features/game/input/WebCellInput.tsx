@@ -1,4 +1,4 @@
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { useRef } from 'react';
 import { View } from 'react-native';
 
 interface Props {
@@ -11,6 +11,9 @@ interface Props {
   readonly onDragEnd: () => void;
 }
 
+const DRAG_THRESHOLD_PX = 8;
+const SINGLE_TAP_DELAY_MS = 250;
+
 export function WebCellInput({
   children,
   enabled = true,
@@ -20,28 +23,78 @@ export function WebCellInput({
   onDragUpdate,
   onDragEnd,
 }: Props) {
-  const singleTap = Gesture.Tap()
-    .onStart(() => onSingleTap())
-    .enabled(enabled);
-  const doubleTap = Gesture.Tap()
-    .numberOfTaps(2)
-    .onStart(() => onDoubleTap())
-    .enabled(enabled);
-  const pan = Gesture.Pan()
-    .minDistance(8)
-    .enabled(enabled)
-    .onBegin(() => onDragBegin())
-    .onUpdate((event) => onDragUpdate(event.x, event.y))
-    .onFinalize(() => onDragEnd());
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
+  const dragging = useRef(false);
+  const suppressClick = useRef(false);
+  const singleTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const gesture = Gesture.Race(
-    pan,
-    Gesture.Exclusive(doubleTap, singleTap),
-  );
+  const clearSingleTapTimer = () => {
+    if (singleTapTimer.current !== null) {
+      clearTimeout(singleTapTimer.current);
+      singleTapTimer.current = null;
+    }
+  };
+
+  const handlePointerDown = (event: any) => {
+    if (!enabled) return;
+    pointerStart.current = { x: event.nativeEvent.pageX, y: event.nativeEvent.pageY };
+    dragging.current = false;
+    suppressClick.current = false;
+  };
+
+  const handlePointerMove = (event: any) => {
+    if (!enabled || !pointerStart.current) return;
+    const dx = event.nativeEvent.pageX - pointerStart.current.x;
+    const dy = event.nativeEvent.pageY - pointerStart.current.y;
+    if (!dragging.current && Math.hypot(dx, dy) >= DRAG_THRESHOLD_PX) {
+      clearSingleTapTimer();
+      dragging.current = true;
+      suppressClick.current = true;
+      onDragBegin();
+    }
+    if (dragging.current) {
+      onDragUpdate(event.nativeEvent.locationX, event.nativeEvent.locationY);
+    }
+  };
+
+  const handlePointerUp = () => {
+    if (!enabled) return;
+    if (dragging.current) onDragEnd();
+    pointerStart.current = null;
+    dragging.current = false;
+  };
+
+  const handleClick = () => {
+    if (!enabled || suppressClick.current) {
+      suppressClick.current = false;
+      return;
+    }
+    clearSingleTapTimer();
+    singleTapTimer.current = setTimeout(() => {
+      singleTapTimer.current = null;
+      onSingleTap();
+    }, SINGLE_TAP_DELAY_MS);
+  };
+
+  const handleDoubleClick = () => {
+    if (!enabled || suppressClick.current) {
+      suppressClick.current = false;
+      return;
+    }
+    clearSingleTapTimer();
+    onDoubleTap();
+  };
 
   return (
-    <GestureDetector gesture={gesture}>
-      <View>{children}</View>
-    </GestureDetector>
+    <View
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
+    >
+      {children}
+    </View>
   );
 }
