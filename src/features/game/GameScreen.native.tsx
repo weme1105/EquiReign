@@ -94,7 +94,7 @@ export default function GameScreen() {
   }
 
   return <SafeAreaView accessibilityLabel="遊戲已就緒" style={styles.screen} testID="game-screen"><View style={styles.header}>
-    <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.back}>‹ 選項</Text></Pressable><View style={styles.headerCenter}><Text style={[styles.level, { color: policy.accent }]}>{policy.label} · {session.puzzle.size}×{session.puzzle.size}</Text><Text style={styles.timer} testID="timer">{formatTime(result.elapsedTimeMs)}</Text></View>
+    <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.back}>‹ 選項</Text></Pressable><View style={styles.headerCenter}><Text style={[styles.level, { color: policy.accent }]}>{policy.label} · {session.puzzle.size}×{session.puzzle.size}</Text><Text style={styles.timer} testID="timer">{formatTime(result.elapsedTimeMs)}</Text></View><Text style={styles.stars} testID="stars">★ {session.stars ?? 3}</Text>
     <Pressable accessibilityRole="button" onPress={() => router.push('/settings')} testID="game-settings"><Text style={styles.back}>設定</Text></Pressable>
   </View><View style={styles.content}>
     <MobileGameBoard session={session} onPress={(row, column) => setSession((current) => current ? singleTapCell(current, { row, column }) : current)} onDoublePress={(row, column) => setSession((current) => current ? doubleTapCell(current, { row, column }) : current)} onDragToggleExcluded={(row, column) => setSession((current) => current ? toggleExcluded(current, { row, column }) : current)} />
@@ -111,7 +111,7 @@ export default function GameScreen() {
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: '#17142a', flex: 1 }, header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 10 },
-  back: { color: '#aaa4bc', fontSize: 15 }, headerCenter: { alignItems: 'center' }, level: { fontSize: 16, fontWeight: '800' }, timer: { color: '#777087', fontVariant: ['tabular-nums'], marginTop: 2 },
+  back: { color: '#aaa4bc', fontSize: 15 }, headerCenter: { alignItems: 'center' }, level: { fontSize: 16, fontWeight: '800' }, timer: { color: '#777087', fontVariant: ['tabular-nums'], marginTop: 2 }, stars: { color: '#f0d58e', fontWeight: '800', minWidth: 44, textAlign: 'right' },
   content: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingHorizontal: 12, paddingBottom: 12 }, instruction: { color: '#aaa4bc', fontSize: 12, marginTop: 15, textAlign: 'center' },
   errorText: { color: '#f58a94', fontWeight: '700', marginTop: 10 }, actions: { flexDirection: 'row', gap: 10, marginTop: 16 }, action: { backgroundColor: '#292441', borderRadius: 11, paddingHorizontal: 17, paddingVertical: 11 },
   actionText: { color: '#ddd6e8', fontWeight: '700' }, hint: { backgroundColor: '#3a3424', borderColor: '#d6b870', borderRadius: 11, borderWidth: 1, paddingHorizontal: 17, paddingVertical: 10 }, hintText: { color: '#f0d58e', fontWeight: '800' },
