@@ -54,6 +54,7 @@ export interface GameSession {
   readonly boardState: BoardSnapshot;
   readonly history: readonly BoardHistoryEntry[];
   readonly hintsUsed: number;
+  readonly stars: number;
   readonly hintTarget: Position | null;
   readonly startedAtMs: number;
   readonly completedAtMs: number | null;
