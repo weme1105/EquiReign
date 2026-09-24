@@ -94,10 +94,16 @@ export default function GameScreen() {
   }
 
   return <SafeAreaView accessibilityLabel="遊戲已就緒" style={styles.screen} testID="game-screen"><View style={styles.header}>
-    <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.back}>‹ 選項</Text></Pressable><View style={styles.headerCenter}><Text style={[styles.level, { color: policy.accent }]}>{policy.label} · {session.puzzle.size}×{session.puzzle.size}</Text><Text style={styles.timer} testID="timer">{formatTime(result.elapsedTimeMs)}</Text></View><Text style={styles.stars} testID="stars">★ {session.stars ?? 3}</Text>
+    <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.back}>‹ 選項</Text></Pressable><View style={styles.headerCenter}><Text style={[styles.level, { color: policy.accent }]}>{policy.label} · {session.puzzle.size}×{session.puzzle.size}</Text><Text style={styles.timer} testID="timer">{formatTime(result.elapsedTimeMs)}</Text></View><Text style={styles.stars} testID="stars">♥ {session.stars ?? 3}</Text>
     <Pressable accessibilityRole="button" onPress={() => router.push('/settings')} testID="game-settings"><Text style={styles.back}>設定</Text></Pressable>
   </View><View style={styles.content}>
-    <MobileGameBoard session={session} onPress={(row, column) => setSession((current) => current ? singleTapCell(current, { row, column }) : current)} onDoublePress={(row, column) => setSession((current) => current ? doubleTapCell(current, { row, column }) : current)} onDragToggleExcluded={(row, column) => setSession((current) => current ? toggleExcluded(current, { row, column }) : current)} />
+    <MobileGameBoard session={session} onPress={(row, column) => setSession((current) => current ? singleTapCell(current, { row, column }) : current)} onDoublePress={(row, column) => setSession((current) => {
+        if (!current) return current;
+        const next = doubleTapCell(current, { row, column });
+        if (next.mistakeErrorKeys.length === 0) return next;
+        setTimeout(() => setSession((latest) => latest.mistakeErrorKeys.length > 0 ? undo(latest) : latest), 1000);
+        return next;
+      })} onDragToggleExcluded={(row, column) => setSession((current) => current ? toggleExcluded(current, { row, column }) : current)} />
     <Text style={styles.instruction}>CLICK：空白→×、×→空白、皇冠→空白 · DOUBLECLICK：空白/×→皇冠、皇冠→× · DRAG：皇冠起點途中空白→×、×起點途中×→空白、空白起點途中空白→×</Text>
     {session.completionError && <Text style={styles.errorText} testID="completion-error">盤面尚未正確完成，請檢查紅色衝突。</Text>}
     <View style={styles.actions}>
