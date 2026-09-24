@@ -38,29 +38,37 @@ function withPlayerBoard(session: GameSession, boardState: GameSession['boardSta
     if (!solution) completed = false;
     else { const frozen = resolveFrozenCells(session.puzzle.size as 6 | 7 | 8 | 9 | 10 | 11 | 12, solution, boardState.cells, { frozenCellIndexes: new Set(session.frozenCellIndexes), revealedCellIndexes: new Set(session.revealedFrozenCellIndexes) }, new Set(session.lostCellIndexes)); revealedFrozenCellIndexes = [...frozen.revealedCellIndexes]; const solutionIndexes = new Set(solution.map(({ row, column }) => row * session.puzzle.size + column)); const implicitCrowns = new Set(revealedFrozenCellIndexes.filter((index) => solutionIndexes.has(index))); const visibleExpected = new Set([...solutionIndexes].filter((index) => !session.lostCellIndexes.includes(index))); const visiblePlaced = new Set(boardState.cells.flatMap((cell, index) => cell === 'queen' ? [index] : []).filter((index) => !session.lostCellIndexes.includes(index))); implicitCrowns.forEach((index) => visiblePlaced.add(index)); completed = visiblePlaced.size === visibleExpected.size && [...visiblePlaced].every((index) => visibleExpected.has(index)); }
   } else { const completeCount = hasCompleteQueenCount(boardState); completed = completeCount && validateCompletedBoard(boardState); completionError = completeCount && !completed; }
-  return { ...session, boardState, history: [...session.history, { cells: session.boardState.cells, completionError: session.completionError }], hintTarget: null, status: completed ? 'completed' : 'playing', completedAtMs: completed ? nowMs : null, completionError, revealedFrozenCellIndexes };
+  return { ...session, boardState, history: [...session.history, { cells: session.boardState.cells, completionError: session.completionError }], hintTarget: null, status: completed ? 'completed' : 'playing', completedAtMs: completed ? nowMs : null, completionError, revealedFrozenCellIndexes, mistakeErrorKeys: [] };
 }
 function withExcludedUsage(session: GameSession, position: Position, nextState: CellState): GameSession { if (nextState !== 'excluded') return session; const key = positionKey(position); return session.excludedPositionKeysUsed.includes(key) ? session : { ...session, excludedPositionKeysUsed: [...session.excludedPositionKeysUsed, key] }; }
 export function cycleCell(session: GameSession, position: Position, nowMs = Date.now()): GameSession { if (session.status === 'completed' || !isInside(session.puzzle.size, position) || isGivenQueen(session, position) || isHiddenSpecialCell(session, position)) return session; const index = cellIndex(session.puzzle.size, position); const nextState = NEXT_STATE[session.boardState.cells[index]!]!; return withPlayerBoard(withExcludedUsage(session, position, nextState), withCell(session.boardState, position, nextState), nowMs); }
 export function singleTapCell(session: GameSession, position: Position, nowMs = Date.now()): GameSession { if (session.status === 'completed' || !isInside(session.puzzle.size, position) || isGivenQueen(session, position) || isHiddenSpecialCell(session, position)) return session; const index = cellIndex(session.puzzle.size, position); const current = session.boardState.cells[index]!; const nextState: CellState = current === 'empty' ? 'excluded' : 'empty'; return withPlayerBoard(withExcludedUsage(session, position, nextState), withCell(session.boardState, position, nextState), nowMs); }
-export function doubleTapCell(session: GameSession, position: Position, nowMs = Date.now()): GameSession { if (session.status === 'completed' || !isInside(session.puzzle.size, position) || isGivenQueen(session, position) || isHiddenSpecialCell(session, position)) return session; const index = cellIndex(session.puzzle.size, position); const current = session.boardState.cells[index]!; const nextState: CellState = current === 'queen' ? 'excluded' : 'queen'; if (nextState === 'queen') { const nextBoard = withCell(session.boardState, position, nextState); if (nextState === 'queen') {
-      const conflictKeys = findRuleConflicts(nextBoard).positions;
-      const key = positionKey(position);
-      if (conflictKeys.has(key)) {
-        return {
-          ...session,
-          boardState: nextBoard,
-          stars: Math.max(0, (session.stars ?? 3) - 1),
-          mistakeErrorKeys: [...conflictKeys].filter((conflictKey) => {
-            const [row, column] = conflictKey.split(':').map(Number);
-            return !isGivenQueen(session, { row, column });
-          }),
-        };
-      }
-    } } const nextSession = withPlayerBoard(session, withCell(session.boardState, position, nextState), nowMs); return nextState === 'excluded' ? withExcludedUsage(nextSession, position, nextState) : nextSession; }
+export function doubleTapCell(session: GameSession, position: Position, nowMs = Date.now()): GameSession {
+  if (session.status === 'completed' || !isInside(session.puzzle.size, position) || isGivenQueen(session, position) || isHiddenSpecialCell(session, position)) return session;
+  const index = cellIndex(session.puzzle.size, position);
+  const current = session.boardState.cells[index]!;
+  const nextState: CellState = current === 'queen' ? 'excluded' : 'queen';
+  if (nextState === 'queen') {
+    const nextBoard = withCell(session.boardState, position, nextState);
+    const conflictKeys = findRuleConflicts(nextBoard).positions;
+    if (conflictKeys.has(positionKey(position))) {
+      return {
+        ...session,
+        boardState: nextBoard,
+        stars: Math.max(0, (session.stars ?? 3) - 1),
+        mistakeErrorKeys: [...conflictKeys].filter((conflictKey) => {
+          const [row, column] = conflictKey.split(':').map(Number);
+          return !isGivenQueen(session, { row, column });
+        }),
+      };
+    }
+  }
+  const nextSession = withPlayerBoard(session, withCell(session.boardState, position, nextState), nowMs);
+  return nextState === 'excluded' ? withExcludedUsage(nextSession, position, nextState) : nextSession;
+}
 export function placeQueen(session: GameSession, position: Position, nowMs = Date.now()): GameSession { if (session.status === 'completed' || !isInside(session.puzzle.size, position) || isGivenQueen(session, position) || isHiddenSpecialCell(session, position)) return session; const next = session.boardState.cells[cellIndex(session.puzzle.size, position)] === 'queen' ? 'empty' : 'queen'; return withPlayerBoard(session, withCell(session.boardState, position, next), nowMs); }
 export function toggleExcluded(session: GameSession, position: Position, nowMs = Date.now()): GameSession { if (session.status === 'completed' || !isInside(session.puzzle.size, position) || isGivenQueen(session, position) || isHiddenSpecialCell(session, position)) return session; const current = session.boardState.cells[cellIndex(session.puzzle.size, position)]; const next = current === 'excluded' ? 'empty' : 'excluded'; return withPlayerBoard(withExcludedUsage(session, position, next), withCell(session.boardState, position, next), nowMs); }
-export function undo(session: GameSession): GameSession { const previous = session.history.at(-1); if (!previous) return session; const cells = previous.cells; return { ...session, boardState: { ...session.boardState, cells }, history: session.history.slice(0, -1), status: 'playing', completedAtMs: null, completionError: previous.completionError, hintTarget: null }; }
+export function undo(session: GameSession): GameSession { const previous = session.history.at(-1); if (!previous) return session; const cells = previous.cells; return { ...session, boardState: { ...session.boardState, cells }, history: session.history.slice(0, -1), status: 'playing', completedAtMs: null, completionError: previous.completionError, hintTarget: null, mistakeErrorKeys: [] }; }
 export function restart(session: GameSession, nowMs = Date.now()): GameSession { return { ...createGameSession(session.puzzle, nowMs, { playMode: session.playMode, campaignLevel: session.campaignLevel }), lostCellIndexes: session.lostCellIndexes, frozenCellIndexes: session.frozenCellIndexes }; }
 export function requestHint(session: GameSession, nowMs = Date.now()): GameSession { const policy = DIFFICULTIES[session.difficulty]; if (session.hintsUsed >= policy.hintLimit || session.hintTarget) return session; const result = findLogicalHint(session.boardState); if (!result) return session; return { ...session, hintsUsed: session.hintsUsed + 1, hintTarget: result, status: 'playing', startedAtMs: session.startedAtMs || nowMs }; }
 export function isHiddenSpecialCell(session: GameSession, position: Position): boolean { const index = cellIndex(session.puzzle.size, position); return session.lostCellIndexes.includes(index) || (session.frozenCellIndexes.includes(index) && !session.revealedFrozenCellIndexes.includes(index)); }
