@@ -11,7 +11,7 @@ const NEXT_STATE: Readonly<Record<CellState, CellState>> = { empty: 'excluded', 
 
 export function createGameSession(puzzle: PuzzleDefinition, nowMs = Date.now(), context: { readonly playMode?: GameSession['playMode']; readonly campaignLevel?: number | null } = {}): GameSession {
   validatePuzzle(puzzle);
-  return { puzzle, difficulty: puzzle.difficulty, stars: 3, mistakeErrorKeys: [], boardState: createBoard(puzzle), history: [], hintsUsed: 0, hintTarget: null, startedAtMs: nowMs, completedAtMs: null, status: 'ready', completionError: false, excludedPositionKeysUsed: [], playMode: context.playMode ?? 'free', campaignLevel: context.campaignLevel ?? null, lostCellIndexes: [], frozenCellIndexes: [], revealedFrozenCellIndexes: [] };
+  return { puzzle, difficulty: puzzle.difficulty, hearts: 3, mistakeErrorKeys: [], boardState: createBoard(puzzle), history: [], hintsUsed: 0, hintTarget: null, startedAtMs: nowMs, completedAtMs: null, status: 'ready', completionError: false, excludedPositionKeysUsed: [], playMode: context.playMode ?? 'free', campaignLevel: context.campaignLevel ?? null, lostCellIndexes: [], frozenCellIndexes: [], revealedFrozenCellIndexes: [] };
 }
 
 export function configureInfiniteSession(session: GameSession): GameSession {
@@ -55,7 +55,7 @@ export function doubleTapCell(session: GameSession, position: Position, nowMs = 
       return {
         ...session,
         boardState: nextBoard,
-        stars: Math.max(0, (session.stars ?? 3) - 1),
+        hearts: Math.max(0, (session.hearts ?? 3) - 1),
         mistakeErrorKeys: [...conflictKeys].filter((conflictKey) => {
           const [row, column] = conflictKey.split(':').map(Number);
           return !isGivenQueen(session, { row, column });
