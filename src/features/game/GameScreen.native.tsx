@@ -101,7 +101,7 @@ export default function GameScreen() {
         if (!current) return current;
         const next = doubleTapCell(current, { row, column });
         if (next.mistakeErrorKeys.length === 0) return next;
-        setTimeout(() => setSession((latest) => latest.mistakeErrorKeys.length > 0 ? undo(latest) : latest), 1000);
+        setTimeout(() => setSession((latest) => latest && latest.mistakeErrorKeys.length > 0 ? undo(latest) : latest), 1000);
         return next;
       })} onDragToggleExcluded={(row, column) => setSession((current) => current ? toggleExcluded(current, { row, column }) : current)} />
     <Text style={styles.instruction}>CLICK：空白→×、×→空白、皇冠→空白 · DOUBLECLICK：空白/×→皇冠、皇冠→× · DRAG：皇冠起點途中空白→×、×起點途中×→空白、空白起點途中空白→×</Text>
