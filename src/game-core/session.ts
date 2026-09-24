@@ -57,8 +57,9 @@ export function doubleTapCell(session: GameSession, position: Position, nowMs = 
         boardState: nextBoard,
         hearts: Math.max(0, (session.hearts ?? 3) - 1),
         mistakeErrorKeys: [...conflictKeys].filter((conflictKey) => {
-          const [row, column] = conflictKey.split(':').map(Number);
-          return !isGivenQueen(session, { row, column });
+          const [rowText, columnText] = conflictKey.split(':');
+          if (rowText === undefined || columnText === undefined) return false;
+          return !isGivenQueen(session, { row: Number(rowText), column: Number(columnText) });
         }),
       };
     }
