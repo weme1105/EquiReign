@@ -1,6 +1,12 @@
 name: Deploy GitHub Pages
 
 on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+      branches:
+        - main
   workflow_dispatch:
     inputs:
       target_sha:
@@ -21,56 +27,95 @@ concurrency:
 jobs:
   build-site:
     name: Build Pages artifact
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          (github.event.workflow_run.event == 'push' &&
+           github.event.workflow_run.conclusion == 'success') }}
     runs-on: ubuntu-latest
+    outputs:
+      deploy: ${{ steps.guard.outputs.deploy }}
     steps:
+      - name: Guard against stale CI result
+        id: guard
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          CI_SHA: ${{ github.event.workflow_run.head_sha }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
+            LATEST_MAIN_SHA="$(git ls-remote "https://github.com/$REPOSITORY.git" refs/heads/main | cut -f1)"
+            if [ "$LATEST_MAIN_SHA" != "$CI_SHA" ]; then
+              echo "CI result is stale: $CI_SHA is no longer main ($LATEST_MAIN_SHA). Skipping deployment."
+              echo "deploy=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Resolve production source ref
         id: prod
+        if: steps.guard.outputs.deploy == 'true'
         env:
+          EVENT_NAME: ${{ github.event_name }}
           TARGET_SHA: ${{ inputs.target_sha }}
+          CI_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          if [ -n "$TARGET_SHA" ]; then
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
+            echo "ref=$CI_SHA" >> "$GITHUB_OUTPUT"
+          elif [ -n "$TARGET_SHA" ]; then
             echo "ref=$TARGET_SHA" >> "$GITHUB_OUTPUT"
           else
             echo "ref=main" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Checkout production source
+        if: steps.guard.outputs.deploy == 'true'
         uses: actions/checkout@v4
         with:
           ref: ${{ steps.prod.outputs.ref }}
 
       - name: Verify application scaffold
+        if: steps.guard.outputs.deploy == 'true'
         run: |
           test -f package.json || { echo 'package.json not found; app scaffold is not ready for deployment.'; exit 1; }
           test -f package-lock.json || { echo 'package-lock.json not found; reproducible deployment requires npm lockfile.'; exit 1; }
 
       - uses: actions/setup-node@v4
+        if: steps.guard.outputs.deploy == 'true'
         with:
           node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
+        if: steps.guard.outputs.deploy == 'true'
         run: npm ci
 
       - name: Build production
+        if: steps.guard.outputs.deploy == 'true'
         run: EXPO_PUBLIC_GIT_SHA="$(git rev-parse HEAD)" npm run build
 
       - name: Write deployment manifest
+        if: steps.guard.outputs.deploy == 'true'
         run: |
           mkdir -p dist
           printf 'DEPLOY_REF=%s\nDEPLOY_SHA=%s\n' "$(git rev-parse --abbrev-ref HEAD)" "$(git rev-parse HEAD)" > dist/deployment-version.txt
           cat dist/deployment-version.txt
 
       - name: Setup Pages
+        if: steps.guard.outputs.deploy == 'true'
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
+        if: steps.guard.outputs.deploy == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
 
   deploy:
     name: Publish Pages
+    if: needs.build-site.outputs.deploy == 'true'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
