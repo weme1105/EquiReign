@@ -130,15 +130,15 @@ export default function GameScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: '#17142a', flex: 1 }, header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 10 },
-  back: { color: '#aaa4bc', fontSize: 15 }, headerCenter: { alignItems: 'center' }, level: { fontSize: 16, fontWeight: '800' }, timer: { color: '#777087', fontVariant: ['tabular-nums'], marginTop: 2 }, hearts: { color: '#f0d58e', fontWeight: '800', minWidth: 44, textAlign: 'right' },
-  content: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingHorizontal: 12, paddingBottom: 12 }, instruction: { color: '#aaa4bc', fontSize: 12, marginTop: 15, textAlign: 'center' },
-  errorText: { color: '#f58a94', fontWeight: '700', marginTop: 10 }, actions: { flexDirection: 'row', gap: 10, marginTop: 16 }, action: { backgroundColor: '#292441', borderRadius: 11, paddingHorizontal: 17, paddingVertical: 11 },
-  actionText: { color: '#ddd6e8', fontWeight: '700' }, hint: { backgroundColor: '#3a3424', borderColor: '#d6b870', borderRadius: 11, borderWidth: 1, paddingHorizontal: 17, paddingVertical: 10 }, hintText: { color: '#f0d58e', fontWeight: '800' },
-  disabled: { opacity: .35 }, help: { flexDirection: 'row', gap: 22, marginTop: 15 }, helpText: { color: '#777087', textDecorationLine: 'underline' },
+  screen: { backgroundColor: '#24203a', flex: 1 }, header: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 18, paddingVertical: 10 },
+  back: { color: '#d2cbe0', fontSize: 15 }, headerCenter: { alignItems: 'center' }, level: { fontSize: 16, fontWeight: '800' }, timer: { color: '#aaa2bc', fontVariant: ['tabular-nums'], marginTop: 2 }, hearts: { color: '#f0d58e', fontWeight: '800', minWidth: 44, textAlign: 'right' },
+  content: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingHorizontal: 12, paddingBottom: 12 }, instruction: { color: '#c5bdd3', fontSize: 12, marginTop: 15, textAlign: 'center' },
+  errorText: { color: '#f58a94', fontWeight: '700', marginTop: 10 }, actions: { flexDirection: 'row', gap: 10, marginTop: 16 }, action: { backgroundColor: '#37304f', borderRadius: 11, paddingHorizontal: 17, paddingVertical: 11 },
+  actionText: { color: '#f0ebf5', fontWeight: '700' }, hint: { backgroundColor: '#3a3424', borderColor: '#d6b870', borderRadius: 11, borderWidth: 1, paddingHorizontal: 17, paddingVertical: 10 }, hintText: { color: '#f0d58e', fontWeight: '800' },
+  disabled: { opacity: .35 }, help: { flexDirection: 'row', gap: 22, marginTop: 15 }, helpText: { color: '#a9a0b9', textDecorationLine: 'underline' },
   completed: { alignItems: 'center', flex: 1, justifyContent: 'center', padding: 28 }, crown: { color: '#d6b870', fontSize: 76 }, completedTitle: { color: '#fffaf1', fontSize: 32, fontWeight: '800', marginTop: 10 },
   completedMeta: { color: '#aaa4bc', marginTop: 9 }, primary: { backgroundColor: '#d6b870', borderRadius: 13, marginTop: 30, paddingHorizontal: 26, paddingVertical: 14 }, primaryText: { color: '#17142a', fontWeight: '800' },
   badge: { color: '#f0d58e', fontWeight: '800', marginTop: 12 },
-  loading: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingHorizontal: 28 }, loadingText: { color: '#aaa4bc', textAlign: 'center' },
-  secondary: { marginTop: 16, padding: 8 }, secondaryText: { color: '#aaa4bc' },
+  loading: { alignItems: 'center', flex: 1, justifyContent: 'center', paddingHorizontal: 28 }, loadingText: { color: '#d0c8dc', textAlign: 'center' },
+  secondary: { marginTop: 16, padding: 8 }, secondaryText: { color: '#d0c8dc' },
 });
