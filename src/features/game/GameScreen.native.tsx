@@ -3,9 +3,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { DIFFICULTIES } from '../../game-core/difficulty.ts';
 import { CAMPAIGN_FINITE_LEVELS, campaignBoardSize, campaignDifficulty, completeCampaignLevel, recordChallengeSuccess, recordFirstClear } from '../../game-core/progression.ts';
-import { createGameSession, doubleTapCell, requestHint, singleTapCell, toggleExcluded, restart, toPuzzleResult, rollbackMistake } from '../../game-core/session.ts';
+import { createGameSession, doubleTapCell, requestHint, singleTapCell, toggleExcluded, restart, toPuzzleResult } from '../../game-core/session.ts';
 import type { BoardSize, Difficulty, GameSession, PuzzleDefinition } from '../../game-core/types.ts';
 import { MobileGameBoard } from './MobileGameBoard.tsx';
+import { CompletionReveal } from './CompletionReveal.tsx';
 import { getBundledCampaignPuzzle } from '../../puzzles/bundled-campaign.ts';
 import { ensureDownloadedCampaignPuzzle } from '../../puzzles/campaign-puzzle-source.ts';
 import { getPuzzle } from '../../puzzles/catalog.ts';
@@ -54,6 +55,7 @@ export default function GameScreen() {
 
   useEffect(() => { if (!isReady || !session) return; if (session.status === 'completed' || session.status === 'failed') void clearActiveSession(); else void saveActiveSession(session); }, [isReady, session]);
   useEffect(() => { if (!session) return; if (session.hearts < previousHearts.current) { heartsPulse.setValue(1); Animated.sequence([Animated.timing(heartsPulse, { toValue: 1.18, duration: 90, useNativeDriver: true }), Animated.parallel([Animated.timing(heartsPulse, { toValue: 1, duration: 220, useNativeDriver: true }), Animated.sequence([Animated.timing(heartsPulse, { toValue: 1.08, duration: 70, useNativeDriver: true }), Animated.timing(heartsPulse, { toValue: 1, duration: 70, useNativeDriver: true })])])]).start(); } previousHearts.current = session.hearts; }, [heartsPulse, session]);
+  useEffect(() => { if (!session || !session.mistakeErrorKeys.length) return; const timer = setTimeout(() => setSession((latest) => latest && latest.mistakeErrorKeys.length > 0 ? rollbackMistake(latest) : latest), 1000); return () => clearTimeout(timer); }, [session?.mistakeErrorKeys]);
   useEffect(() => { if (!session || session.status === 'completed' || session.status === 'failed') return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [session]);
 
   const policy = DIFFICULTIES[session?.difficulty ?? difficulty];
@@ -94,7 +96,7 @@ export default function GameScreen() {
     const completionPersisted = persistedCompletionKey === completionKey; const campaignWasReplay = replayedCompletion.current === completionKey;
     const completedCampaignLevel = session.campaignLevel;
     return <SafeAreaView accessibilityLabel="遊戲已就緒" style={styles.screen} testID="game-screen"><View style={styles.completed} testID="completion-screen">
-      <Text style={styles.crown}>♛</Text><Text style={styles.completedTitle}>王冠歸位</Text><Text style={styles.completedMeta}>{formatTime(result.elapsedTimeMs)} · {session.history.length} 步 · 提示 {result.hintsUsed}</Text>
+      <CompletionReveal session={session} stars={(result.limitedXClear ? 1 : 0) + (result.elapsedTimeMs <= session.puzzle.size * 10_000 ? 1 : 0) + (session.hearts === 3 ? 1 : 0)} /><Text style={styles.completedTitle}>王冠歸位</Text><Text style={styles.completedMeta}>{formatTime(result.elapsedTimeMs)} · {session.history.length} 步 · 提示 {result.hintsUsed}</Text>
       {result.limitedXClear && <Text style={styles.badge}>無 X 挑戰達成 · 有效 X {result.effectiveExcludedCount}/{session.puzzle.size}</Text>}
       {session.playMode === 'campaign' && completedCampaignLevel
         ? <>
@@ -116,13 +118,7 @@ export default function GameScreen() {
     <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.back}>‹ 選項</Text></Pressable><View style={styles.headerCenter}><Text style={[styles.level, { color: policy.accent }]}>{policy.label} · {session.puzzle.size}×{session.puzzle.size}</Text><Text style={styles.timer} testID="timer">{formatTime(result.elapsedTimeMs)}</Text></View><Animated.Text style={[styles.hearts, { transform: [{ scale: heartsPulse }] }]} testID="hearts">♥ {session.hearts ?? 3}</Animated.Text>
     <Pressable accessibilityRole="button" onPress={() => router.push('/settings')} testID="game-settings"><Text style={styles.back}>設定</Text></Pressable>
   </View><View style={styles.content}>
-    <MobileGameBoard session={session} onPress={(row, column) => setSession((current) => current ? singleTapCell(current, { row, column }) : current)} onDoublePress={(row, column) => setSession((current) => {
-        if (!current) return current;
-        const next = doubleTapCell(current, { row, column });
-        if (next.mistakeErrorKeys.length === 0) return next;
-        setTimeout(() => setSession((latest) => latest && latest.mistakeErrorKeys.length > 0 ? rollbackMistake(latest) : latest), 1000);
-        return next;
-      })} onDragToggleExcluded={(row, column) => setSession((current) => current ? toggleExcluded(current, { row, column }) : current)} />
+    <MobileGameBoard session={session} onPress={(row, column) => setSession((current) => current ? singleTapCell(current, { row, column }) : current)} onDoublePress={(row, column) => setSession((current) => current ? doubleTapCell(current, { row, column }) : current)} onDragToggleExcluded={(row, column) => setSession((current) => current ? toggleExcluded(current, { row, column }) : current)} />
     <Text style={styles.instruction}>CLICK：空白→×、×→空白、皇冠→空白 · DOUBLECLICK：空白/×→皇冠、皇冠→× · DRAG：皇冠起點途中空白→×、×起點途中×→空白、空白起點途中空白→×</Text>
     {session.completionError && <Text style={styles.errorText} testID="completion-error">盤面尚未正確完成，請檢查紅色衝突。</Text>}
     <View style={styles.actions}>
