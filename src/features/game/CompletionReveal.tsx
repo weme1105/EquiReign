@@ -61,10 +61,10 @@ export function CompletionReveal({ session, stars }: Props) {
           const region = session.puzzle.regionMap[index]!;
           const order = crownOrder.get(index);
           return (
-            <View key={positionKey({ row, column })} style={[styles.cell, { width: cellSize, height: cellSize, backgroundColor: REGION_COLORS[region % REGION_COLORS.length] }]}>
+            <View key={`${row}:${column}`} style={[styles.cell, { width: cellSize, height: cellSize, left: column * cellSize, top: row * cellSize, backgroundColor: REGION_COLORS[region % REGION_COLORS.length] }]}>
               {state === 'queen' && order !== undefined && (
                 <RevealCrown delay={order * 115}>
-                  <Text style={styles.crown}>♛</Text>
+                  <Text style={[styles.crown, { color: REGION_COLORS[region % REGION_COLORS.length] }]}>♛</Text>
                 </RevealCrown>
               )}
             </View>
