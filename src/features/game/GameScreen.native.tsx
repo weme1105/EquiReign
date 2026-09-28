@@ -2,7 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { DIFFICULTIES } from '../../game-core/difficulty.ts';
-import { completeCampaignLevel, recordChallengeSuccess, recordFirstClear } from '../../game-core/progression.ts';
+import { CAMPAIGN_FINITE_LEVELS, campaignBoardSize, campaignDifficulty, completeCampaignLevel, recordChallengeSuccess, recordFirstClear } from '../../game-core/progression.ts';
 import { createGameSession, doubleTapCell, requestHint, singleTapCell, toggleExcluded, restart, toPuzzleResult, undo } from '../../game-core/session.ts';
 import type { BoardSize, Difficulty, GameSession, PuzzleDefinition } from '../../game-core/types.ts';
 import { MobileGameBoard } from './MobileGameBoard.tsx';
@@ -87,7 +87,14 @@ export default function GameScreen() {
       <Text style={styles.crown}>♛</Text><Text style={styles.completedTitle}>王冠歸位</Text><Text style={styles.completedMeta}>{formatTime(result.elapsedTimeMs)} · {session.history.length} 步 · 提示 {result.hintsUsed}</Text>
       {result.limitedXClear && <Text style={styles.badge}>無 X 挑戰達成 · 有效 X {result.effectiveExcludedCount}/{session.puzzle.size}</Text>}
       {session.playMode === 'campaign' && session.campaignLevel
-        ? <Pressable accessibilityRole="button" disabled={!completionPersisted} onPress={() => router.replace('/campaign')} style={[styles.primary, !completionPersisted && styles.disabled]} testID={campaignWasReplay ? 'return-campaign' : 'next-level'}><Text style={styles.primaryText}>{completionPersisted ? (campaignWasReplay ? '返回闖關' : '下一關') : '儲存中…'}</Text></Pressable>
+        ? <Pressable accessibilityRole="button" disabled={!completionPersisted} onPress={() => {
+            if (campaignWasReplay || session.campaignLevel >= CAMPAIGN_FINITE_LEVELS) {
+              router.replace('/campaign');
+              return;
+            }
+            const nextLevel = session.campaignLevel + 1;
+            router.replace({ pathname: '/game', params: { mode: 'campaign', level: String(nextLevel), difficulty: campaignDifficulty(nextLevel), size: String(campaignBoardSize(nextLevel)) } });
+          }} style={[styles.primary, !completionPersisted && styles.disabled]} testID={campaignWasReplay || session.campaignLevel >= CAMPAIGN_FINITE_LEVELS ? 'return-campaign' : 'next-level'}><Text style={styles.primaryText}>{completionPersisted ? (campaignWasReplay || session.campaignLevel >= CAMPAIGN_FINITE_LEVELS ? '返回闖關' : '下一關') : '儲存中…'}</Text></Pressable>
         : <Pressable accessibilityRole="button" disabled={!completionPersisted} onPress={() => setSession(restart(session))} style={[styles.primary, !completionPersisted && styles.disabled]} testID="play-again"><Text style={styles.primaryText}>{completionPersisted ? '再玩一次' : '儲存中…'}</Text></Pressable>}
       <Pressable accessibilityRole="button" onPress={() => router.replace('/')} style={styles.secondary}><Text style={styles.secondaryText}>選擇其他選項</Text></Pressable>
     </View></SafeAreaView>;
