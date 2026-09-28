@@ -90,10 +90,10 @@ export default function GameScreen() {
       {session.playMode === 'campaign' && completedCampaignLevel
         ? <>
             <Pressable accessibilityRole="button" disabled={!completionPersisted || (!campaignWasReplay && completedCampaignLevel >= CAMPAIGN_FINITE_LEVELS)} onPress={() => {
-              if (campaignWasReplay || session.campaignLevel >= CAMPAIGN_FINITE_LEVELS) return;
+              if (campaignWasReplay || completedCampaignLevel >= CAMPAIGN_FINITE_LEVELS) return;
               const nextLevel = completedCampaignLevel + 1;
               router.replace({ pathname: '/game', params: { mode: 'campaign', level: String(nextLevel), difficulty: campaignDifficulty(nextLevel), size: String(campaignBoardSize(nextLevel)) } });
-            }} style={[styles.primary, (!completionPersisted || (!campaignWasReplay && session.campaignLevel >= CAMPAIGN_FINITE_LEVELS)) && styles.disabled]} testID="next-level"><Text style={styles.primaryText}>{completionPersisted ? '下一關' : '儲存中…'}</Text></Pressable>
+            }} style={[styles.primary, (!completionPersisted || (!campaignWasReplay && completedCampaignLevel >= CAMPAIGN_FINITE_LEVELS)) && styles.disabled]} testID="next-level"><Text style={styles.primaryText}>{completionPersisted ? '下一關' : '儲存中…'}</Text></Pressable>
             <Pressable accessibilityRole="button" onPress={() => router.replace('/campaign')} style={styles.secondary} testID="return-campaign"><Text style={styles.secondaryText}>回到列表</Text></Pressable>
           </>
         : <>
