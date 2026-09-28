@@ -1,5 +1,6 @@
 import { Animated, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useEffect, useMemo, useRef } from 'react';
+import type { ReactNode } from 'react';
 import { positionKey } from '../../game-core/board.ts';
 import type { GameSession } from '../../game-core/types.ts';
 
@@ -10,7 +11,7 @@ interface Props {
   readonly stars: number;
 }
 
-function RevealCrown({ delay, children }: { readonly delay: number; readonly children: React.ReactNode }) {
+function RevealCrown({ delay, children }: { readonly delay: number; readonly children: ReactNode }) {
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.7)).current;
   useEffect(() => {
