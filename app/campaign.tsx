@@ -39,7 +39,6 @@ export default function CampaignScreen() {
     return () => { active = false; };
   }, []));
 
-  const maxUnlockedLevel = CAMPAIGN_FINITE_LEVELS;
   const availableStages = useMemo(() => STAGES, []);
   const start = stageStart(selectedStage);
   const end = stageEnd(selectedStage);
@@ -79,12 +78,11 @@ export default function CampaignScreen() {
 
     <View style={styles.levelGrid}>
       {levels.map((level) => {
-        const locked = false;
         const completed = level <= progress.completedCampaignLevel;
         const current = level === progress.completedCampaignLevel + 1 && progress.completedCampaignLevel < CAMPAIGN_FINITE_LEVELS;
         const difficulty = campaignDifficulty(level);
         const size = campaignBoardSize(level);
-        return <Pressable accessibilityRole="button" disabled={locked} key={level} onPress={() => router.push({ pathname: '/game', params: { mode: 'campaign', level: String(level), difficulty, size: String(size) } })} style={[styles.levelCell, current && styles.currentCell]} testID={`campaign-level-${level}`}>
+        return <Pressable accessibilityRole="button" key={level} onPress={() => router.push({ pathname: '/game', params: { mode: 'campaign', level: String(level), difficulty, size: String(size) } })} style={[styles.levelCell, current && styles.currentCell]} testID={`campaign-level-${level}`}>
           <Text style={[styles.levelNumber, { color: DIFFICULTIES[difficulty].accent }]}>{level}</Text>
           <Text style={styles.levelState}>{completed ? '✓ 已完成' : current ? '● 目前進度' : '○ 可遊玩'}</Text>
           <Text style={styles.levelSize}>{size}×{size}</Text>
