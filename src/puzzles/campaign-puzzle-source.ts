@@ -7,6 +7,8 @@ function isDifficulty(value: string): value is Difficulty {
   return value === 'beginner' || value === 'intermediate' || value === 'advanced' || value === 'expert' || value === 'king';
 }
 
+const campaignBatchDownloads = new Map<number, Promise<boolean>>();
+
 function toPuzzleDefinition(puzzle: CachedCampaignPuzzle): PuzzleDefinition {
   if (!isDifficulty(puzzle.difficulty)) throw new Error(`Unsupported campaign difficulty: ${puzzle.difficulty}`);
   const size = puzzle.size;
@@ -20,11 +22,25 @@ export async function loadDownloadedCampaignPuzzle(level: number): Promise<Puzzl
 }
 
 export async function ensureCampaignBatch(startLevel: number): Promise<boolean> {
-  if (await loadCampaignBatch(startLevel)) return true;
-  const downloaded = await downloadCampaignBatch(startLevel);
-  if (!downloaded) return false;
-  await saveCampaignBatch(downloaded);
-  return true;
+  const cached = await loadCampaignBatch(startLevel);
+  if (cached) return true;
+
+  const existing = campaignBatchDownloads.get(startLevel);
+  if (existing) return existing;
+
+  const download = (async () => {
+    const downloaded = await downloadCampaignBatch(startLevel);
+    if (!downloaded) return false;
+    await saveCampaignBatch(downloaded);
+    return true;
+  })();
+
+  campaignBatchDownloads.set(startLevel, download);
+  try {
+    return await download;
+  } finally {
+    campaignBatchDownloads.delete(startLevel);
+  }
 }
 
 export async function ensureDownloadedCampaignPuzzle(level: number): Promise<PuzzleDefinition | null> {
