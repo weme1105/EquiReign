@@ -46,6 +46,7 @@ export function CompletionReveal({ session, stars }: Props) {
   const { width, height } = useWindowDimensions();
   const size = Math.min(width - 56, height * 0.38, 330);
   const cellSize = size / session.puzzle.size;
+  const boardSize = session.puzzle.size;
   const crowns = useMemo(
     () => session.boardState.cells.map((state, index) => state === 'queen' ? index : null).filter((index): index is number => index !== null),
     [session.boardState.cells],
@@ -54,11 +55,12 @@ export function CompletionReveal({ session, stars }: Props) {
 
   return (
     <View style={styles.wrap} testID="completion-reveal">
-      <View style={[styles.board, { width: size, height: size }]}>
-        {session.boardState.cells.map((state, index) => {
-          const row = Math.floor(index / session.puzzle.size);
-          const column = index % session.puzzle.size;
-          const region = session.puzzle.regionMap[index]!;
+      <View style={[styles.board, { width: cellSize * boardSize, height: cellSize * boardSize }]}>
+        {Array.from({ length: boardSize * boardSize }, (_, index) => {
+          const row = Math.floor(index / boardSize);
+          const column = index % boardSize;
+          const state = session.boardState.cells[index] ?? 'empty';
+          const region = session.puzzle.regionMap[index] ?? 0;
           const order = crownOrder.get(index);
           return (
             <View key={`${row}:${column}`} style={[styles.cell, { width: cellSize, height: cellSize, left: column * cellSize, top: row * cellSize, backgroundColor: REGION_COLORS[region % REGION_COLORS.length] }]}>
@@ -70,7 +72,7 @@ export function CompletionReveal({ session, stars }: Props) {
             </View>
           );
         })}
-      </View>
+
       <View style={styles.stars} accessibilityLabel={'獲得 ' + stars + ' 顆星'}>
         {[0, 1, 2].map((index) => <RevealStar key={index} delay={crowns.length * 115 + index * 180} visible={index < stars} />)}
       </View>
