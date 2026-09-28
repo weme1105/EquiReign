@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { DIFFICULTIES } from '../../game-core/difficulty.ts';
 import { CAMPAIGN_FINITE_LEVELS, campaignBoardSize, campaignDifficulty, completeCampaignLevel, recordChallengeSuccess, recordFirstClear } from '../../game-core/progression.ts';
-import { createGameSession, doubleTapCell, requestHint, singleTapCell, toggleExcluded, restart, toPuzzleResult, resolveMistake, undo } from '../../game-core/session.ts';
+import { createGameSession, doubleTapCell, requestHint, singleTapCell, toggleExcluded, restart, toPuzzleResult, rollbackMistake } from '../../game-core/session.ts';
 import type { BoardSize, Difficulty, GameSession, PuzzleDefinition } from '../../game-core/types.ts';
 import { WebGameBoard } from './WebGameBoard.tsx';
 import { getBundledCampaignPuzzle } from '../../puzzles/bundled-campaign.ts';
@@ -52,8 +52,8 @@ export default function GameScreen() {
     return () => { active = false; };
   }, [bundledPuzzle, resumeSaved, requestedMode, requestedLevel]);
 
-  useEffect(() => { if (!isReady || !session) return; if (session.status === 'completed') void clearActiveSession(); else void saveActiveSession(session); }, [isReady, session]);
-  useEffect(() => { if (!session || session.status === 'completed') return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [session]);
+  useEffect(() => { if (!isReady || !session) return; if (session.status === 'completed' || session.status === 'failed') void clearActiveSession(); else void saveActiveSession(session); }, [isReady, session]);
+  useEffect(() => { if (!session || session.status === 'completed' || session.status === 'failed') return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [session]);
 
   const policy = DIFFICULTIES[session?.difficulty ?? difficulty];
   const result = session ? toPuzzleResult(session, now) : null;
@@ -80,6 +80,14 @@ export default function GameScreen() {
 
   if (loadError) return <SafeAreaView accessibilityLabel="關卡資料無法讀取" style={styles.screen} testID="game-screen"><View style={styles.loading}><Text style={styles.loadingText}>這批關卡尚未下載，請連線後再試。</Text><Pressable accessibilityRole="button" onPress={() => router.replace('/campaign')} style={styles.secondary}><Text style={styles.secondaryText}>返回闖關</Text></Pressable></View></SafeAreaView>;
   if (!isReady || !session || !puzzle || !result) return <SafeAreaView accessibilityLabel="遊戲載入中" style={styles.screen} testID="game-screen"><View style={styles.loading}><Text style={styles.loadingText}>讀取棋局…</Text></View></SafeAreaView>;
+
+  if (session.status === 'failed') {
+    return <SafeAreaView accessibilityLabel="本局結束" style={styles.screen} testID="failed-screen"><View style={styles.completed}>
+      <Text style={styles.crown}>♥</Text><Text style={styles.completedTitle}>心力用盡</Text><Text style={styles.completedMeta}>三次錯誤已用完本局的愛心。</Text>
+      <Pressable accessibilityRole="button" onPress={() => setSession(restart(session))} style={styles.primary} testID="restart-after-fail"><Text style={styles.primaryText}>重新開始</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => router.replace(session.playMode === 'campaign' ? '/campaign' : '/')} style={styles.secondary} testID="return-after-fail"><Text style={styles.secondaryText}>返回列表</Text></Pressable>
+    </View></SafeAreaView>;
+  }
 
   if (session.status === 'completed') {
     const completionPersisted = persistedCompletionKey === completionKey; const campaignWasReplay = replayedCompletion.current === completionKey;
@@ -111,13 +119,12 @@ export default function GameScreen() {
         if (!current) return current;
         const next = doubleTapCell(current, { row, column });
         if (next.mistakeErrorKeys.length === 0) return next;
-        setTimeout(() => setSession((latest) => latest && latest.mistakeErrorKeys.length > 0 ? resolveMistake(latest) : latest), 1000);
+        setTimeout(() => setSession((latest) => latest && latest.mistakeErrorKeys.length > 0 ? rollbackMistake(latest) : latest), 1000);
         return next;
       })} onDragToggleExcluded={(row, column) => setSession((current) => current ? toggleExcluded(current, { row, column }) : current)} />
     <Text style={styles.instruction}>CLICK：空白→×、×→空白、皇冠→空白 · DOUBLECLICK：空白/×→皇冠、皇冠→× · DRAG：皇冠起點途中空白→×、×起點途中×→空白、空白起點途中空白→×</Text>
     {session.completionError && <Text style={styles.errorText} testID="completion-error">盤面尚未正確完成，請檢查紅色衝突。</Text>}
     <View style={styles.actions}>
-      <Pressable accessibilityRole="button" disabled={!session.history.length} onPress={() => setSession((current) => current ? undo(current) : current)} style={[styles.action, !session.history.length && styles.disabled]} testID="undo-button"><Text style={styles.actionText}>Undo</Text></Pressable>
       <Pressable accessibilityRole="button" onPress={() => setSession((current) => current ? restart(current) : current)} style={styles.action} testID="restart-button"><Text style={styles.actionText}>Restart</Text></Pressable>
       {policy.hintLimit > 0 && <Pressable accessibilityRole="button" disabled={!hintsLeft || !!session.hintTarget} onPress={() => setSession((current) => current ? requestHint(current) : current)} style={[styles.hint, (!hintsLeft || !!session.hintTarget) && styles.disabled]} testID="hint-button"><Text style={styles.hintText}>提示 {hintsLeft}</Text></Pressable>}
     </View>
