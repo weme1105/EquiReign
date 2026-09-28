@@ -1,7 +1,7 @@
 export type Difficulty = 'beginner' | 'intermediate' | 'advanced' | 'expert' | 'king';
 export type BoardSize = 6 | 7 | 8 | 9 | 10 | 11 | 12;
 export type CellState = 'empty' | 'excluded' | 'queen';
-export type GameStatus = 'ready' | 'playing' | 'completed';
+export type GameStatus = 'ready' | 'playing' | 'completed' | 'failed';
 
 export interface Position { readonly row: number; readonly column: number }
 
