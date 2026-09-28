@@ -66,7 +66,6 @@ export function CompletionReveal({ session, stars }: Props) {
             <View key={`${row}:${column}`} style={[styles.cell, { width: cellSize, height: cellSize, left: column * cellSize, top: row * cellSize, backgroundColor: REGION_COLORS[region % REGION_COLORS.length] }]}>
               {state === 'queen' && order !== undefined && (
                 <RevealCrown delay={order * 115}>
-                  <View pointerEvents="none" style={styles.crownOverlay} />
                   <Text style={[styles.crown, { color: REGION_COLORS[region % REGION_COLORS.length] }]}>♛</Text>
                 </RevealCrown>
               )}
@@ -85,8 +84,7 @@ const styles = StyleSheet.create({
   wrap: { alignItems: 'center' },
   board: { borderColor: '#d6b870', borderRadius: 10, borderWidth: 3, overflow: 'hidden', position: 'relative' },
   cell: { alignItems: 'center', borderColor: 'rgba(23,20,42,.12)', borderWidth: 0.5, justifyContent: 'center', position: 'absolute' },
-  crownOverlay: { backgroundColor: '#f3a6b8', bottom: 2, left: 2, position: 'absolute', right: 2, top: 2 },
-  crown: { fontSize: 22, lineHeight: 27 },
+  crown: { color: '#17232b', fontSize: 22, lineHeight: 27, textShadowColor: '#17232b', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 0 },
   stars: { flexDirection: 'row', gap: 10, height: 38, marginTop: 10 },
   star: { color: '#f0d58e', fontSize: 30, lineHeight: 34 },
 });
