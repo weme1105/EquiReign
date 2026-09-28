@@ -70,6 +70,14 @@ export function doubleTapCell(session: GameSession, position: Position, nowMs = 
 }
 export function placeQueen(session: GameSession, position: Position, nowMs = Date.now()): GameSession { if (session.status === 'completed' || session.mistakeErrorKeys.length > 0 || !isInside(session.puzzle.size, position) || isGivenQueen(session, position) || isHiddenSpecialCell(session, position)) return session; const next = session.boardState.cells[cellIndex(session.puzzle.size, position)] === 'queen' ? 'empty' : 'queen'; return withPlayerBoard(session, withCell(session.boardState, position, next), nowMs); }
 export function toggleExcluded(session: GameSession, position: Position, nowMs = Date.now()): GameSession { if (session.status === 'completed' || session.mistakeErrorKeys.length > 0 || !isInside(session.puzzle.size, position) || isGivenQueen(session, position) || isHiddenSpecialCell(session, position)) return session; const current = session.boardState.cells[cellIndex(session.puzzle.size, position)]; const next = current === 'excluded' ? 'empty' : 'excluded'; return withPlayerBoard(withExcludedUsage(session, position, next), withCell(session.boardState, position, next), nowMs); }
+export function resolveMistake(session: GameSession, nowMs = Date.now()): GameSession {
+  if (!session.mistakeErrorKeys.length) return session;
+  if (session.hearts <= 0) return restart(session, nowMs);
+  const previous = session.history.at(-1);
+  if (!previous) return { ...session, mistakeErrorKeys: [] };
+  return { ...session, boardState: { ...session.boardState, cells: previous.cells }, history: session.history.slice(0, -1), status: 'playing', completedAtMs: null, completionError: previous.completionError, hintTarget: null, mistakeErrorKeys: [] };
+}
+
 export function undo(session: GameSession): GameSession { const previous = session.history.at(-1); if (!previous) return session; const cells = previous.cells; return { ...session, boardState: { ...session.boardState, cells }, history: session.history.slice(0, -1), status: 'playing', completedAtMs: null, completionError: previous.completionError, hintTarget: null, mistakeErrorKeys: [] }; }
 export function restart(session: GameSession, nowMs = Date.now()): GameSession { return { ...createGameSession(session.puzzle, nowMs, { playMode: session.playMode, campaignLevel: session.campaignLevel }), lostCellIndexes: session.lostCellIndexes, frozenCellIndexes: session.frozenCellIndexes }; }
 export function requestHint(session: GameSession, nowMs = Date.now()): GameSession { const policy = DIFFICULTIES[session.difficulty]; if (session.hintsUsed >= policy.hintLimit || session.hintTarget) return session; const result = findLogicalHint(session.boardState); if (!result) return session; return { ...session, hintsUsed: session.hintsUsed + 1, hintTarget: result, status: 'playing', startedAtMs: session.startedAtMs || nowMs }; }
