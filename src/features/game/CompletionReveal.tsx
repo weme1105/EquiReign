@@ -1,10 +1,10 @@
 import { Animated, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { useEffect, useMemo, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { positionKey } from '../../game-core/board.ts';
+
 import type { GameSession } from '../../game-core/types.ts';
 
-const REGION_COLORS = ['#e8d7b7','#b7d9d0','#c8c0e1','#e2bcbc','#d5d7a9','#b9cfe2','#dfc3df','#e4c9aa','#bfc1d9','#d6c2ac','#b8d8c9'];
+const REGION_COLORS = ['#e8d7b7','#b7d9d0','#c8c0e1','#e2bcbc','#d5d7a9','#b9cfe2','#dfc3df','#c8d7bd','#e4c9aa','#bfc1d9','#d6c2ac','#b8d8c9'];
 
 interface Props {
   readonly session: GameSession;
@@ -80,8 +80,8 @@ export function CompletionReveal({ session, stars }: Props) {
 
 const styles = StyleSheet.create({
   wrap: { alignItems: 'center' },
-  board: { borderColor: '#d6b870', borderRadius: 10, borderWidth: 3, flexDirection: 'row', flexWrap: 'wrap', overflow: 'hidden' },
-  cell: { alignItems: 'center', borderColor: 'rgba(23,20,42,.12)', borderWidth: 0.5, justifyContent: 'center' },
+  board: { borderColor: '#d6b870', borderRadius: 10, borderWidth: 3, overflow: 'hidden', position: 'relative' },
+  cell: { alignItems: 'center', borderColor: 'rgba(23,20,42,.12)', borderWidth: 0.5, justifyContent: 'center', position: 'absolute' },
   crown: { color: '#17142a', fontSize: 22, lineHeight: 27 },
   stars: { flexDirection: 'row', gap: 10, height: 38, marginTop: 10 },
   star: { color: '#f0d58e', fontSize: 30, lineHeight: 34 },
