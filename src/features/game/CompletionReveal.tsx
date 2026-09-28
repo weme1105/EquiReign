@@ -72,7 +72,7 @@ export function CompletionReveal({ session, stars }: Props) {
             </View>
           );
         })}
-
+      </View>
       <View style={styles.stars} accessibilityLabel={'獲得 ' + stars + ' 顆星'}>
         {[0, 1, 2].map((index) => <RevealStar key={index} delay={crowns.length * 115 + index * 180} visible={index < stars} />)}
       </View>
