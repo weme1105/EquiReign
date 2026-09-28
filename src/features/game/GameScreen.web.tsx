@@ -83,14 +83,15 @@ export default function GameScreen() {
 
   if (session.status === 'completed') {
     const completionPersisted = persistedCompletionKey === completionKey; const campaignWasReplay = replayedCompletion.current === completionKey;
+    const completedCampaignLevel = session.campaignLevel;
     return <SafeAreaView accessibilityLabel="遊戲已就緒" style={styles.screen} testID="game-screen"><View style={styles.completed} testID="completion-screen">
       <Text style={styles.crown}>♛</Text><Text style={styles.completedTitle}>王冠歸位</Text><Text style={styles.completedMeta}>{formatTime(result.elapsedTimeMs)} · {session.history.length} 步 · 提示 {result.hintsUsed}</Text>
       {result.limitedXClear && <Text style={styles.badge}>無 X 挑戰達成 · 有效 X {result.effectiveExcludedCount}/{session.puzzle.size}</Text>}
-      {session.playMode === 'campaign' && session.campaignLevel
+      {session.playMode === 'campaign' && completedCampaignLevel
         ? <>
-            <Pressable accessibilityRole="button" disabled={!completionPersisted || (!campaignWasReplay && session.campaignLevel >= CAMPAIGN_FINITE_LEVELS)} onPress={() => {
+            <Pressable accessibilityRole="button" disabled={!completionPersisted || (!campaignWasReplay && completedCampaignLevel >= CAMPAIGN_FINITE_LEVELS)} onPress={() => {
               if (campaignWasReplay || session.campaignLevel >= CAMPAIGN_FINITE_LEVELS) return;
-              const nextLevel = session.campaignLevel + 1;
+              const nextLevel = completedCampaignLevel + 1;
               router.replace({ pathname: '/game', params: { mode: 'campaign', level: String(nextLevel), difficulty: campaignDifficulty(nextLevel), size: String(campaignBoardSize(nextLevel)) } });
             }} style={[styles.primary, (!completionPersisted || (!campaignWasReplay && session.campaignLevel >= CAMPAIGN_FINITE_LEVELS)) && styles.disabled]} testID="next-level"><Text style={styles.primaryText}>{completionPersisted ? '下一關' : '儲存中…'}</Text></Pressable>
             <Pressable accessibilityRole="button" onPress={() => router.replace('/campaign')} style={styles.secondary} testID="return-campaign"><Text style={styles.secondaryText}>回到列表</Text></Pressable>
