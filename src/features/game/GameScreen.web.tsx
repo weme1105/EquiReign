@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { DIFFICULTIES } from '../../game-core/difficulty.ts';
 import { CAMPAIGN_FINITE_LEVELS, campaignBoardSize, campaignDifficulty, completeCampaignLevel, recordChallengeSuccess, recordFirstClear } from '../../game-core/progression.ts';
 import { createGameSession, doubleTapCell, requestHint, singleTapCell, toggleExcluded, restart, toPuzzleResult, rollbackMistake } from '../../game-core/session.ts';
@@ -32,7 +32,7 @@ export default function GameScreen() {
   const createSession = (definition: PuzzleDefinition): GameSession => createGameSession(definition, Date.now(), context);
   const [puzzle, setPuzzle] = useState<PuzzleDefinition | null>(bundledPuzzle);
   const [session, setSession] = useState<GameSession | null>(() => bundledPuzzle ? createSession(bundledPuzzle) : null);
-  const [isReady, setIsReady] = useState(false); const [loadError, setLoadError] = useState(false); const [now, setNow] = useState(Date.now());
+  const [isReady, setIsReady] = useState(false); const [loadError, setLoadError] = useState(false); const [now, setNow] = useState(Date.now()); const heartsPulse = useRef(new Animated.Value(1)).current; const previousHearts = useRef(3);
   const recordedCompletion = useRef<string | null>(null); const replayedCompletion = useRef<string | null>(null); const [persistedCompletionKey, setPersistedCompletionKey] = useState<string | null>(null);
 
   useEffect(() => {
@@ -53,6 +53,7 @@ export default function GameScreen() {
   }, [bundledPuzzle, resumeSaved, requestedMode, requestedLevel]);
 
   useEffect(() => { if (!isReady || !session) return; if (session.status === 'completed' || session.status === 'failed') void clearActiveSession(); else void saveActiveSession(session); }, [isReady, session]);
+  useEffect(() => { if (!session) return; if (session.hearts < previousHearts.current) { heartsPulse.setValue(1); Animated.sequence([Animated.timing(heartsPulse, { toValue: 1.18, duration: 90, useNativeDriver: true }), Animated.parallel([Animated.timing(heartsPulse, { toValue: 1, duration: 220, useNativeDriver: true }), Animated.sequence([Animated.timing(heartsPulse, { toValue: 1.08, duration: 70, useNativeDriver: true }), Animated.timing(heartsPulse, { toValue: 1, duration: 70, useNativeDriver: true })])])]).start(); } previousHearts.current = session.hearts; }, [heartsPulse, session]);
   useEffect(() => { if (!session || session.status === 'completed' || session.status === 'failed') return; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [session]);
 
   const policy = DIFFICULTIES[session?.difficulty ?? difficulty];
@@ -112,7 +113,7 @@ export default function GameScreen() {
   }
 
   return <SafeAreaView accessibilityLabel="遊戲已就緒" style={styles.screen} testID="game-screen"><View style={styles.header}>
-    <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.back}>‹ 選項</Text></Pressable><View style={styles.headerCenter}><Text style={[styles.level, { color: policy.accent }]}>{policy.label} · {session.puzzle.size}×{session.puzzle.size}</Text><Text style={styles.timer} testID="timer">{formatTime(result.elapsedTimeMs)}</Text></View><Text style={styles.hearts} testID="hearts">♥ {session.hearts ?? 3}</Text>
+    <Pressable accessibilityRole="button" onPress={() => router.back()}><Text style={styles.back}>‹ 選項</Text></Pressable><View style={styles.headerCenter}><Text style={[styles.level, { color: policy.accent }]}>{policy.label} · {session.puzzle.size}×{session.puzzle.size}</Text><Text style={styles.timer} testID="timer">{formatTime(result.elapsedTimeMs)}</Text></View><Animated.Text style={[styles.hearts, { transform: [{ scale: heartsPulse }] }]} testID="hearts">♥ {session.hearts ?? 3}</Animated.Text>
     <Pressable accessibilityRole="button" onPress={() => router.push('/settings')} testID="game-settings"><Text style={styles.back}>設定</Text></Pressable>
   </View><View style={styles.content}>
     <WebGameBoard session={session} onPress={(row, column) => setSession((current) => current ? singleTapCell(current, { row, column }) : current)} onDoublePress={(row, column) => setSession((current) => {
