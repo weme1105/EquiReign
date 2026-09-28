@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { DIFFICULTIES } from '../../game-core/difficulty.ts';
 import { CAMPAIGN_FINITE_LEVELS, campaignBoardSize, campaignDifficulty, completeCampaignLevel, recordChallengeSuccess, recordFirstClear } from '../../game-core/progression.ts';
-import { createGameSession, doubleTapCell, requestHint, singleTapCell, toggleExcluded, restart, toPuzzleResult } from '../../game-core/session.ts';
+import { createGameSession, doubleTapCell, requestHint, singleTapCell, toggleExcluded, restart, toPuzzleResult, rollbackMistake } from '../../game-core/session.ts';
 import type { BoardSize, Difficulty, GameSession, PuzzleDefinition } from '../../game-core/types.ts';
 import { MobileGameBoard } from './MobileGameBoard.tsx';
 import { CompletionReveal } from './CompletionReveal.tsx';
