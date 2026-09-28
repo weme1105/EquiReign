@@ -33,7 +33,7 @@ export default function GameScreen() {
   const createSession = (definition: PuzzleDefinition): GameSession => createGameSession(definition, Date.now(), context);
   const [puzzle, setPuzzle] = useState<PuzzleDefinition | null>(bundledPuzzle);
   const [session, setSession] = useState<GameSession | null>(() => bundledPuzzle ? createSession(bundledPuzzle) : null);
-  const [isReady, setIsReady] = useState(false); const [loadError, setLoadError] = useState(false); const [now, setNow] = useState(Date.now()); const heartsPulse = useRef(new Animated.Value(1)).current; const previousHearts = useRef(3);
+  const [isReady, setIsReady] = useState(false); const [loadError, setLoadError] = useState(false); const [downloadPending, setDownloadPending] = useState(false); const [now, setNow] = useState(Date.now()); const heartsPulse = useRef(new Animated.Value(1)).current; const previousHearts = useRef(3);
   const recordedCompletion = useRef<string | null>(null); const replayedCompletion = useRef<string | null>(null); const [persistedCompletionKey, setPersistedCompletionKey] = useState<string | null>(null);
 
   useEffect(() => {
@@ -41,7 +41,11 @@ export default function GameScreen() {
     void (async () => {
       let resolved = bundledPuzzle;
       if (requestedMode === 'campaign' && Number.isInteger(requestedLevel) && requestedLevel >= 100) {
-        try { resolved = await ensureDownloadedCampaignPuzzle(requestedLevel); } catch { resolved = null; }
+        const cachedOrDownloaded = ensureDownloadedCampaignPuzzle(requestedLevel);
+        setDownloadPending(true);
+        try { resolved = await cachedOrDownloaded; } catch { resolved = null; }
+        if (!active) return;
+        setDownloadPending(false);
       }
       if (!active) return;
       if (!resolved) { setPuzzle(null); setSession(null); setLoadError(true); return; }
@@ -81,8 +85,8 @@ export default function GameScreen() {
     return () => { active = false; };
   }, [completionKey, result, session]);
 
-  if (loadError) return <SafeAreaView accessibilityLabel="關卡資料無法讀取" style={styles.screen} testID="game-screen"><View style={styles.loading}><Text style={styles.loadingText}>這批關卡尚未下載，請連線後再試。</Text><Pressable accessibilityRole="button" onPress={() => router.replace('/campaign')} style={styles.secondary}><Text style={styles.secondaryText}>返回闖關</Text></Pressable></View></SafeAreaView>;
-  if (!isReady || !session || !puzzle || !result) return <SafeAreaView accessibilityLabel="遊戲載入中" style={styles.screen} testID="game-screen"><View style={styles.loading}><Text style={styles.loadingText}>讀取棋局…</Text></View></SafeAreaView>;
+  if (loadError) return <SafeAreaView accessibilityLabel="關卡資料無法讀取" style={styles.screen} testID="game-screen"><View style={styles.loading}><Text style={styles.loadingText}>關卡下載失敗，請確認網路後重新進入。</Text><Pressable accessibilityRole="button" onPress={() => router.replace('/campaign')} style={styles.secondary}><Text style={styles.secondaryText}>返回闖關</Text></Pressable></View></SafeAreaView>;
+  if (downloadPending || !isReady || !session || !puzzle || !result) return <SafeAreaView accessibilityLabel="遊戲載入中" style={styles.screen} testID="game-screen"><View style={styles.loading}><Text style={styles.loadingText}>{downloadPending ? '請等待關卡下載…' : '讀取棋局…'}</Text><Pressable accessibilityRole="button" onPress={() => router.replace('/campaign')} style={styles.secondary}><Text style={styles.secondaryText}>返回闖關</Text></Pressable></View></SafeAreaView>;
 
   if (session.status === 'failed') {
     return <SafeAreaView accessibilityLabel="本局結束" style={styles.screen} testID="failed-screen"><View style={styles.completed}>
