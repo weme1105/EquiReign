@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { DIFFICULTIES } from '../../game-core/difficulty.ts';
 import { CAMPAIGN_FINITE_LEVELS, campaignBoardSize, campaignDifficulty, completeCampaignLevel, recordChallengeSuccess, recordFirstClear } from '../../game-core/progression.ts';
-import { createGameSession, doubleTapCell, requestHint, singleTapCell, toggleExcluded, restart, toPuzzleResult, undo } from '../../game-core/session.ts';
+import { createGameSession, doubleTapCell, requestHint, singleTapCell, toggleExcluded, restart, toPuzzleResult, resolveMistake, undo } from '../../game-core/session.ts';
 import type { BoardSize, Difficulty, GameSession, PuzzleDefinition } from '../../game-core/types.ts';
 import { WebGameBoard } from './WebGameBoard.tsx';
 import { getBundledCampaignPuzzle } from '../../puzzles/bundled-campaign.ts';
@@ -111,7 +111,7 @@ export default function GameScreen() {
         if (!current) return current;
         const next = doubleTapCell(current, { row, column });
         if (next.mistakeErrorKeys.length === 0) return next;
-        setTimeout(() => setSession((latest) => latest && latest.mistakeErrorKeys.length > 0 ? undo(latest) : latest), 1000);
+        setTimeout(() => setSession((latest) => latest && latest.mistakeErrorKeys.length > 0 ? resolveMistake(latest) : latest), 1000);
         return next;
       })} onDragToggleExcluded={(row, column) => setSession((current) => current ? toggleExcluded(current, { row, column }) : current)} />
     <Text style={styles.instruction}>CLICK：空白→×、×→空白、皇冠→空白 · DOUBLECLICK：空白/×→皇冠、皇冠→× · DRAG：皇冠起點途中空白→×、×起點途中×→空白、空白起點途中空白→×</Text>
