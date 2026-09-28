@@ -96,7 +96,7 @@ export default function GameScreen() {
     const completionPersisted = persistedCompletionKey === completionKey; const campaignWasReplay = replayedCompletion.current === completionKey;
     const completedCampaignLevel = session.campaignLevel;
     return <SafeAreaView accessibilityLabel="遊戲已就緒" style={styles.screen} testID="game-screen"><View style={styles.completed} testID="completion-screen">
-      <CompletionReveal session={session} stars={(result.limitedXClear ? 1 : 0) + (result.elapsedTimeMs <= session.puzzle.size * 10_000 ? 1 : 0) + (session.hearts === 3 ? 1 : 0)} /><Text style={styles.completedTitle}>王冠歸位</Text><Text style={styles.completedMeta}>{formatTime(result.elapsedTimeMs)} · {session.history.length} 步 · 提示 {result.hintsUsed}</Text>
+      <CompletionReveal session={session} stars={(result.limitedXClear ? 1 : 0) + (result.elapsedTimeMs <= session.puzzle.size ** 2 * 1_000 ? 1 : 0) + (session.hearts === 3 ? 1 : 0)} /><Text style={styles.completedTitle}>王冠歸位</Text><Text style={styles.completedMeta}>{formatTime(result.elapsedTimeMs)} · {session.history.length} 步 · 提示 {result.hintsUsed}</Text>
       {result.limitedXClear && <Text style={styles.badge}>無 X 挑戰達成 · 有效 X {result.effectiveExcludedCount}/{session.puzzle.size}</Text>}
       {session.playMode === 'campaign' && completedCampaignLevel
         ? <>
