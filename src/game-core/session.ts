@@ -70,12 +70,11 @@ export function doubleTapCell(session: GameSession, position: Position, nowMs = 
 }
 export function placeQueen(session: GameSession, position: Position, nowMs = Date.now()): GameSession { if (session.status === 'completed' || session.mistakeErrorKeys.length > 0 || !isInside(session.puzzle.size, position) || isGivenQueen(session, position) || isHiddenSpecialCell(session, position)) return session; const next = session.boardState.cells[cellIndex(session.puzzle.size, position)] === 'queen' ? 'empty' : 'queen'; return withPlayerBoard(session, withCell(session.boardState, position, next), nowMs); }
 export function toggleExcluded(session: GameSession, position: Position, nowMs = Date.now()): GameSession { if (session.status === 'completed' || session.mistakeErrorKeys.length > 0 || !isInside(session.puzzle.size, position) || isGivenQueen(session, position) || isHiddenSpecialCell(session, position)) return session; const current = session.boardState.cells[cellIndex(session.puzzle.size, position)]; const next = current === 'excluded' ? 'empty' : 'excluded'; return withPlayerBoard(withExcludedUsage(session, position, next), withCell(session.boardState, position, next), nowMs); }
-export function resolveMistake(session: GameSession, nowMs = Date.now()): GameSession {
+export function rollbackMistake(session: GameSession): GameSession {
   if (!session.mistakeErrorKeys.length) return session;
-  if (session.hearts <= 0) return restart(session, nowMs);
   const previous = session.history.at(-1);
-  if (!previous) return { ...session, mistakeErrorKeys: [] };
-  return { ...session, boardState: { ...session.boardState, cells: previous.cells }, history: session.history.slice(0, -1), status: 'playing', completedAtMs: null, completionError: previous.completionError, hintTarget: null, mistakeErrorKeys: [] };
+  if (!previous) return { ...session, mistakeErrorKeys: [], status: session.hearts <= 0 ? 'failed' : 'playing' };
+  return { ...session, boardState: { ...session.boardState, cells: previous.cells }, history: session.history.slice(0, -1), status: session.hearts <= 0 ? 'failed' : 'playing', completedAtMs: null, completionError: previous.completionError, hintTarget: null, mistakeErrorKeys: [] };
 }
 
 export function undo(session: GameSession): GameSession { const previous = session.history.at(-1); if (!previous) return session; const cells = previous.cells; return { ...session, boardState: { ...session.boardState, cells }, history: session.history.slice(0, -1), status: 'playing', completedAtMs: null, completionError: previous.completionError, hintTarget: null, mistakeErrorKeys: [] }; }
