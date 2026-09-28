@@ -39,8 +39,8 @@ export default function CampaignScreen() {
     return () => { active = false; };
   }, []));
 
-  const maxUnlockedLevel = Math.min(progress.completedCampaignLevel + 1, CAMPAIGN_FINITE_LEVELS);
-  const availableStages = useMemo(() => STAGES.filter((stage) => stageStart(stage) <= maxUnlockedLevel || stage === 'beginner'), [maxUnlockedLevel]);
+  const maxUnlockedLevel = CAMPAIGN_FINITE_LEVELS;
+  const availableStages = useMemo(() => STAGES, []);
   const start = stageStart(selectedStage);
   const end = stageEnd(selectedStage);
   const pageCount = Math.max(1, Math.ceil((end - start + 1) / LEVELS_PER_PAGE));
@@ -51,7 +51,7 @@ export default function CampaignScreen() {
 
   const chooseStage = (stage: CampaignStage) => {
     setSelectedStage(stage);
-    const current = maxUnlockedLevel;
+    const current = Math.min(progress.completedCampaignLevel + 1, CAMPAIGN_FINITE_LEVELS);
     setPage(campaignStage(current) === stage ? Math.floor((current - stageStart(stage)) / LEVELS_PER_PAGE) : 0);
   };
 
@@ -79,23 +79,23 @@ export default function CampaignScreen() {
 
     <View style={styles.levelGrid}>
       {levels.map((level) => {
-        const locked = level > maxUnlockedLevel;
+        const locked = false;
         const completed = level <= progress.completedCampaignLevel;
-        const current = level === maxUnlockedLevel && progress.completedCampaignLevel < CAMPAIGN_FINITE_LEVELS;
+        const current = level === progress.completedCampaignLevel + 1 && progress.completedCampaignLevel < CAMPAIGN_FINITE_LEVELS;
         const difficulty = campaignDifficulty(level);
         const size = campaignBoardSize(level);
-        return <Pressable accessibilityRole="button" disabled={locked} key={level} onPress={() => router.push({ pathname: '/game', params: { mode: 'campaign', level: String(level), difficulty, size: String(size) } })} style={[styles.levelCell, current && styles.currentCell, locked && styles.disabled]} testID={`campaign-level-${level}`}>
+        return <Pressable accessibilityRole="button" disabled={locked} key={level} onPress={() => router.push({ pathname: '/game', params: { mode: 'campaign', level: String(level), difficulty, size: String(size) } })} style={[styles.levelCell, current && styles.currentCell]} testID={`campaign-level-${level}`}>
           <Text style={[styles.levelNumber, { color: DIFFICULTIES[difficulty].accent }]}>{level}</Text>
-          <Text style={styles.levelState}>{completed ? '✓ 已完成' : current ? '● 目前進度' : locked ? '🔒' : '○ 可遊玩'}</Text>
+          <Text style={styles.levelState}>{completed ? '✓ 已完成' : current ? '● 目前進度' : '○ 可遊玩'}</Text>
           <Text style={styles.levelSize}>{size}×{size}</Text>
         </Pressable>;
       })}
     </View>
 
     <Pressable onPress={() => {
-      const level = maxUnlockedLevel; const difficulty = campaignDifficulty(level); const size = campaignBoardSize(level);
+      const level = Math.min(progress.completedCampaignLevel + 1, CAMPAIGN_FINITE_LEVELS); const difficulty = campaignDifficulty(level); const size = campaignBoardSize(level);
       router.push({ pathname: '/game', params: { mode: 'campaign', level: String(level), difficulty, size: String(size) } });
-    }} style={styles.currentButton} testID="campaign-current-level"><Text style={styles.currentButtonText}>{progress.completedCampaignLevel >= CAMPAIGN_FINITE_LEVELS ? `重玩最終關 · 第 ${CAMPAIGN_FINITE_LEVELS} 關` : `回到目前進度 · 第 ${maxUnlockedLevel} 關`}</Text></Pressable>
+    }} style={styles.currentButton} testID="campaign-current-level"><Text style={styles.currentButtonText}>{progress.completedCampaignLevel >= CAMPAIGN_FINITE_LEVELS ? `重玩最終關 · 第 ${CAMPAIGN_FINITE_LEVELS} 關` : `回到目前進度 · 第 ${Math.min(progress.completedCampaignLevel + 1, CAMPAIGN_FINITE_LEVELS)} 關`}</Text></Pressable>
   </ScrollView></SafeAreaView>;
 }
 
